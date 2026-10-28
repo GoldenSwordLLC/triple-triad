@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark window chrome: the launch window, status and nav bars match the mat,
+         so cold start goes dark -> main menu with no white flash. -->
+    <style name="Theme.Triad" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/triad_bg</item>
+        <item name="android:statusBarColor">@color/triad_bg</item>
+        <item name="android:navigationBarColor">@color/triad_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

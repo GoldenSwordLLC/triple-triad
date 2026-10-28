@@ -1,0 +1,10 @@
+{ "name": "same_preempts_plus", "rules": { "same": true, "plus": true, "sameWall": false, "elemental": false },
+  "cards": {
+    "p": { "name": "P", "level": 1, "element": "none", "top": 6, "right": 1, "bottom": 1, "left": 6 },
+    "x": { "name": "X", "level": 1, "element": "none", "top": 1, "right": 1, "bottom": 6, "left": 1 },
+    "y": { "name": "Y", "level": 1, "element": "none", "top": 1, "right": 6, "bottom": 1, "left": 1 } },
+  "board": [null, {"card":"x","owner":"red"}, null, {"card":"y","owner":"red"}, null,
+            null, null, null, null],
+  "hands": { "blue": ["p"], "red": [] }, "turn": "blue",
+  "place": { "card": "p", "cell": 4 },
+  "expectFlips": [ {"cell":1,"cause":"same","wave":0}, {"cell":3,"cause":"same","wave":0} ] }

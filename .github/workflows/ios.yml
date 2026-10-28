@@ -1,0 +1,73 @@
+# Manual iOS build — NEVER runs on push (free-tier macOS minutes are 10x-billed).
+# Trigger it from the Actions tab ("Run workflow") or: gh workflow run ios.yml
+# Builds the SwiftUI app for the iOS Simulator, boots it, installs, and screenshots
+# the launch — the only Mac this repo has. Expect failures while the blind-written
+# TriadApp layer gets its first real compiler pass; paste errors back for fixing.
+name: iOS build (manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      # default Xcode on this image is 15.4, which can't read the project format
+      # current XcodeGen emits (objectVersion 77 needs Xcode 16+)
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Toolchain versions
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices available | grep -m5 "iPhone" || true
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Pick a simulator
+        run: |
+          # image runtimes drift (iPhone 15 exists only on 17.x, 16-family on 18.x) —
+          # resolve an actual device UDID instead of hardcoding name+OS
+          UDID=$(xcrun simctl list devices available | grep "iPhone 16 (" | grep -oE '[0-9A-F-]{36}' | tail -1)
+          [ -n "$UDID" ] || UDID=$(xcrun simctl list devices available | grep -oE '[0-9A-F-]{36}' | head -1)
+          echo "TRIAD_SIM=$UDID" >> "$GITHUB_ENV"
+          echo "using simulator $UDID"
+
+      - name: Build (iOS Simulator, unsigned)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild -project Triad.xcodeproj -scheme Triad \
+            -destination "id=$TRIAD_SIM" \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO 2>&1 | tail -80
+
+      - name: Boot simulator, install, screenshot
+        run: |
+          xcrun simctl boot "$TRIAD_SIM" 2>/dev/null || true
+          APP=$(find ios/build/Build/Products -type d -name "Triad.app" | head -1)
+          echo "app: $APP"
+          xcrun simctl install "$TRIAD_SIM" "$APP"
+          xcrun simctl launch "$TRIAD_SIM" com.goldenswordllc.Triad
+          sleep 8
+          mkdir -p shots
+          xcrun simctl io "$TRIAD_SIM" screenshot shots/01-launch.png
+          xcrun simctl terminate "$TRIAD_SIM" com.goldenswordllc.Triad 2>/dev/null || true
+
+      - name: Upload build + screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: |
+            shots/
+            ios/build/Build/Products/**/Triad.app
+          if-no-files-found: warn

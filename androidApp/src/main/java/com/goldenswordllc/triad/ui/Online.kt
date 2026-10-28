@@ -1,0 +1,293 @@
+package com.goldenswordllc.triad.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import triad.net.hostRelay
+import triad.net.joinRelay
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import triad.core.CardDef
+import triad.net.ColorPref
+import triad.core.GameState
+import triad.core.MatchSettings
+import triad.core.Owner
+import triad.core.TradeRule
+import triad.core.maxLoss
+import triad.net.P2pSession
+
+fun parseRelayAddr(raw: String): Pair<String, Int>? {
+    val s = raw.trim()
+    if (s.isEmpty()) return null
+    val idx = s.lastIndexOf(':')
+    if (idx > 0) {
+        val port = s.substring(idx + 1).toIntOrNull() ?: return null
+        if (port !in 1..65535) return null
+        val host = s.substring(0, idx)
+        return host.takeIf { it.isNotBlank() }?.let { it to port }
+    }
+    return s to 44000
+}
+
+class OnlineHostViewModel(
+    private val relayHost: String,
+    private val relayPort: Int,
+    private val catalog: Map<String, CardDef>,
+    private val myDeckIds: List<String>,
+) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val code = MutableStateFlow<String?>(null)
+    val session = MutableStateFlow<P2pSession?>(null)
+    val error = MutableStateFlow<String?>(null)
+    private var wire: triad.net.Wire? = null
+
+    fun start(name: String, settings: MatchSettings) {
+        if (session.value != null || code.value != null) return
+        scope.launch {
+            try {
+                val (w, room) = hostRelay(relayHost, relayPort, scope)
+                wire = w
+                code.value = room
+                val s = P2pSession(w, isHost = true, myName = name, token = room, catalog = catalog,
+                    me = P2pSession.PlayerLocal(myDeckIds, emptyList(), ColorPref.any),
+                    hostSettings = settings)
+                s.start()
+                session.value = s
+            } catch (e: Exception) {
+                error.value = e.message ?: "Could not reach the relay"
+            }
+        }
+    }
+
+    fun shutdown() { runCatching { wire?.close() }; scope.cancel() }
+}
+
+@Composable
+fun OnlineHostScreen(
+    relayHost: String,
+    relayPort: Int,
+    catalog: Map<String, CardDef>,
+    myDeckIds: List<String>,
+    cardCount: Int,
+    onMatchStarted: (P2pSession, GameState, Owner) -> Unit,
+    onExit: () -> Unit,
+) {
+    val vm = remember { OnlineHostViewModel(relayHost, relayPort, catalog, myDeckIds) }
+    DisposableEffect(vm) { onDispose { vm.shutdown() } }
+    val code by vm.code.collectAsState()
+    val session by vm.session.collectAsState()
+    val error by vm.error.collectAsState()
+    var name by remember { mutableStateOf("Host") }
+    var trade by remember { mutableStateOf(TradeRule.one) }
+    fun ruleAllowed(rule: TradeRule): Boolean = cardCount - rule.maxLoss() >= 5
+
+    Box(Modifier.fillMaxSize()) {
+        MatBackground(Modifier.matchParentSize(), dim = 0.24f)
+        Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            when {
+                session != null -> {
+                    val s = session!!
+                    PreMatchFlow(s, transportNote = "online relay",
+                        onMatchStarted = { st, color -> onMatchStarted(s, st, color) },
+                        onExit = onExit)
+                }
+                code != null -> {
+                    Box(Modifier.weight(1f).fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp)).background(Color(22, 15, 6).copy(alpha = 0.88f))) {
+                        Column(Modifier.fillMaxSize().padding(16.dp),
+                               horizontalAlignment = Alignment.CenterHorizontally,
+                               verticalArrangement = Arrangement.Center) {
+                            Text("READ THIS CODE TO YOUR FRIEND", color = Color(255, 240, 200), fontSize = 14.sp,
+                                 fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(14.dp))
+                            Text((code ?: "").uppercase(), color = Color(255, 240, 200),
+                                 fontSize = 26.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                                 lineHeight = 32.sp,
+                                 modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                                     .background(Color(0, 0, 0).copy(alpha = 0.35f))
+                                     .padding(horizontal = 18.dp, vertical = 10.dp))
+                            Spacer(Modifier.height(12.dp))
+                            Text("they type it under JOIN WITH A CODE", color = Color(190, 175, 145),
+                                 fontSize = 11.sp)
+                            Spacer(Modifier.height(18.dp))
+                            Text("Waiting for your friend to join…", color = Color(255, 240, 200), fontSize = 13.sp)
+                            error?.let {
+                                Spacer(Modifier.height(8.dp))
+                                Text("ERROR: $it", color = Color(255, 120, 100), fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(18.dp))
+                            GoldAction("✕  CANCEL", filled = false, modifier = Modifier.fillMaxWidth()) {
+                                vm.shutdown(); onExit()
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    Box(Modifier.weight(1f).fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp)).background(Color(22, 15, 6).copy(alpha = 0.88f))) {
+                        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                               horizontalAlignment = Alignment.CenterHorizontally,
+                               verticalArrangement = Arrangement.Center) {
+                            Text("HOST ONLINE", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(14.dp))
+                            Text("Your name", color = Color(230, 205, 160), fontSize = 11.sp,
+                                 fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+                            OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFFD4AF37),
+                                    unfocusedBorderColor = Color(150, 130, 90),
+                                    focusedTextColor = Color(245, 238, 220),
+                                    unfocusedTextColor = Color(245, 238, 220),
+                                    cursorColor = Color(0xFFD4AF37),
+                                ))
+                            Spacer(Modifier.height(14.dp))
+                            Text("TRADE RULE, what the loser gives up", color = Color(230, 205, 160),
+                                 fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                                 modifier = Modifier.align(Alignment.Start))
+                            Spacer(Modifier.height(6.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf(TradeRule.none, TradeRule.one, TradeRule.direct,
+                                       TradeRule.diff, TradeRule.all).forEach { rule ->
+                                    val sel = trade == rule
+                                    val allowed = ruleAllowed(rule)
+                                    Box(Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(when {
+                                            sel && allowed -> Color(0xFFD4AF37)
+                                            else -> Color(30, 22, 8).copy(alpha = 0.85f)
+                                        })
+                                        .border(if (sel) 2.dp else 1.dp,
+                                                if (allowed) Color(0xFFD4AF37) else Color(150, 130, 90).copy(alpha = 0.35f),
+                                                RoundedCornerShape(10.dp))
+                                        .clickable(enabled = allowed) { if (allowed) trade = rule }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                        Text(rule.name.uppercase(),
+                                             color = if (sel && allowed) Color(55, 38, 10)
+                                                     else if (allowed) Color(255, 240, 200)
+                                                     else Color(190, 175, 145).copy(alpha = 0.45f),
+                                             fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(when (trade) {
+                                     TradeRule.none -> "Loser pays nothing, a friendly game."
+                                     TradeRule.one -> "Winner takes 1 card from the loser's hand."
+                                     TradeRule.direct -> "Every captured card goes to its captor, both ways."
+                                     TradeRule.diff -> "Winner takes cards equal to the score gap."
+                                     TradeRule.all -> "Winner takes the loser's whole hand."
+                                 },
+                                 color = Color(245, 238, 220), fontSize = 11.sp,
+                                 textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                            Spacer(Modifier.height(16.dp))
+                            GoldButton("HOST A ROOM  ▶", filled = true) { vm.start(name, MatchSettings(trade = trade)) }
+                            error?.let {
+                                Spacer(Modifier.height(8.dp))
+                                Text("ERROR: $it", color = Color(255, 120, 100), fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(14.dp))
+                            GoldAction("✕  CANCEL", filled = false, modifier = Modifier.fillMaxWidth()) { onExit() }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OnlineJoinScreen(
+    relayHost: String,
+    relayPort: Int,
+    catalog: Map<String, CardDef>,
+    myDeckIds: List<String>,
+    onMatchStarted: (P2pSession, GameState, Owner) -> Unit,
+    onExit: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val wireScope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    var code by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+    var joinSession by remember { mutableStateOf<P2pSession?>(null) }
+    DisposableEffect(Unit) { onDispose { } }
+
+    when {
+        joinSession != null -> {
+            val s = joinSession!!
+            PreMatchFlow(s, transportNote = "online relay",
+                onMatchStarted = { st, color -> onMatchStarted(s, st, color) },
+                onExit = onExit)
+        }
+        else -> Box(Modifier.fillMaxSize()) {
+            MatBackground(Modifier.matchParentSize(), dim = 0.24f)
+            Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.weight(1f).fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp)).background(Color(22, 15, 6).copy(alpha = 0.88f))) {
+                    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                           horizontalAlignment = Alignment.CenterHorizontally,
+                           verticalArrangement = Arrangement.Center) {
+                        Text("JOIN ONLINE", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(10.dp))
+                        Text("enter the three words your friend reads you", color = Color(190, 175, 145),
+                             fontSize = 11.sp)
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(code, { code = it; errorMsg = null },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            placeholder = { Text("leviathan fira balamb", color = Color(150, 130, 90), fontSize = 13.sp) },
+                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFD4AF37),
+                                unfocusedBorderColor = Color(150, 130, 90),
+                                focusedTextColor = Color(245, 238, 220),
+                                unfocusedTextColor = Color(245, 238, 220),
+                                cursorColor = Color(0xFFD4AF37),
+                            ))
+                        errorMsg?.let {
+                            Spacer(Modifier.height(8.dp))
+                            Text(it, color = Color(255, 120, 100), fontWeight = FontWeight.Bold,
+                                 fontSize = 12.sp, textAlign = TextAlign.Center)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        GoldButton(if (busy) "JOINING…" else "JOIN  ▶", filled = true, enabled = !busy && code.isNotBlank()) {
+                            busy = true; errorMsg = null
+                            scope.launch {
+                                try {
+                                    val wire = joinRelay(relayHost, relayPort, code, wireScope)
+                                    val s = P2pSession(wire, isHost = false, myName = "Joiner", token = code.lowercase(),
+                                        catalog = catalog,
+                                        me = P2pSession.PlayerLocal(myDeckIds, emptyList(), ColorPref.any),
+                                        hostSettings = null)
+                                    s.start()
+                                    joinSession = s
+                                } catch (e: Exception) {
+                                    errorMsg = e.message ?: "Could not reach the relay"
+                                } finally { busy = false }
+                            }
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        GoldAction("✕  CANCEL", filled = false, modifier = Modifier.fillMaxWidth()) { onExit() }
+                    }
+                }
+            }
+        }
+    }
+}

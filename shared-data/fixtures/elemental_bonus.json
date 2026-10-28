@@ -1,0 +1,8 @@
+{ "name": "elemental_bonus", "rules": { "same": false, "plus": false, "sameWall": false, "elemental": true },
+  "cards": {
+    "p": { "name": "P", "level": 1, "element": "fire", "top": 5, "right": 5, "bottom": 5, "left": 5 },
+    "a": { "name": "A", "level": 1, "element": "none", "top": 1, "right": 1, "bottom": 5, "left": 1 } },
+  "board": [null, {"card":"a","owner":"red"}, null, null, {"element":"fire"}, null, null, null, null],
+  "hands": { "blue": ["p"], "red": [] }, "turn": "blue",
+  "place": { "card": "p", "cell": 4 },
+  "expectFlips": [ {"cell":1,"cause":"basic","wave":0} ] }

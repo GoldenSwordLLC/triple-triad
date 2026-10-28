@@ -1,0 +1,37 @@
+# XcodeGen spec — generates Triad.xcodeproj (`xcodegen generate` from this directory).
+# The committed repo has no .xcodeproj; CI and local Macs both generate it from this file.
+name: Triad
+options:
+  bundleIdPrefix: com.goldenswordllc
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+packages:
+  TriadCore:
+    path: TriadCore
+targets:
+  Triad:
+    type: application
+    platform: iOS
+    sources:
+      - TriadApp
+    dependencies:
+      - package: TriadCore
+    info:
+      path: TriadApp/Info.plist
+      properties:
+        CFBundleDisplayName: Triad
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        CFBundleIcons: {}
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "1"   # iPhone-only, portrait — mirrors the Android app
+schemes:
+  Triad:
+    build:
+      targets:
+        Triad: all
+    run:
+      config: Debug

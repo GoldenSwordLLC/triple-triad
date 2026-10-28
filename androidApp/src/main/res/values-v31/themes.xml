@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ system splash: our icon on the dark background (replaces the
+         default white splash). -->
+    <style name="Theme.Triad" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/triad_bg</item>
+        <item name="android:statusBarColor">@color/triad_bg</item>
+        <item name="android:navigationBarColor">@color/triad_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowSplashScreenBackground">@color/triad_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
+</resources>

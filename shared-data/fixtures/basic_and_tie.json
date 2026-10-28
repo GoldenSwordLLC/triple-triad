@@ -1,0 +1,11 @@
+{ "name": "basic_and_tie", "rules": { "same": false, "plus": false, "sameWall": false, "elemental": false },
+  "cards": {
+    "p": { "name": "P", "level": 1, "element": "none", "top": 5, "right": 5, "bottom": 5, "left": 5 },
+    "a": { "name": "A", "level": 1, "element": "none", "top": 1, "right": 1, "bottom": 4, "left": 1 },
+    "b": { "name": "B", "level": 1, "element": "none", "top": 1, "right": 5, "bottom": 1, "left": 1 },
+    "c": { "name": "C", "level": 1, "element": "none", "top": 1, "right": 1, "bottom": 1, "left": 3 } },
+  "board": [null, {"card":"a","owner":"red"}, null, {"card":"b","owner":"red"}, null,
+            {"card":"c","owner":"red"}, null, null, null],
+  "hands": { "blue": ["p"], "red": [] }, "turn": "blue",
+  "place": { "card": "p", "cell": 4 },
+  "expectFlips": [ {"cell":1,"cause":"basic","wave":0}, {"cell":5,"cause":"basic","wave":0} ] }

@@ -1,0 +1,112 @@
+package triad.net
+
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import java.io.BufferedInputStream
+import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.io.BufferedReader
+import java.io.InputStreamReader
+
+private const val PEER_GONE = "PEER_GONE"
+
+/** The game's transport over the online relay: a plain TCP wire whose reader filters the
+ *  relay's one control token (PEER_GONE) and turns it into a connection close, so the
+ *  session's existing closed-wire handling applies (mid-match = forfeit to the survivor,
+ *  pre-match = disconnected). Everything else flows through verbatim, exactly like TcpWire. */
+class RelayWire(socket: Socket, scope: CoroutineScope) : Wire {
+    private val pendingLines = ArrayDeque<String>()
+    @Volatile private var closedFired = false
+    override var onLine: ((String) -> Unit)? = null
+        set(value) { field = value; if (value != null) while (pendingLines.isNotEmpty()) value(pendingLines.removeFirst()) }
+    override var onClose: (() -> Unit)? = null
+        set(value) { field = value; if (closedFired) value?.invoke() }
+
+    private val outbound = Channel<String>(Channel.UNLIMITED)
+
+    init {
+        scope.launch(Dispatchers.IO) {
+            val out = java.io.BufferedOutputStream(socket.getOutputStream())
+            try {
+                for (line in outbound) {
+                    out.write((line + "\n").toByteArray()); out.flush()
+                }
+                out.flush()
+            } catch (_: IOException) {}
+            runCatching { socket.close() }
+            if (!closedFired) { closedFired = true; onClose?.invoke() }
+        }
+        scope.launch(Dispatchers.IO) {
+            try {
+                val r = BufferedReader(InputStreamReader(socket.getInputStream()))
+                while (true) {
+                    val line = r.readLine() ?: break
+                    if (line == PEER_GONE) { close(); break }
+                    if (line.isNotEmpty()) deliver(line)
+                }
+            } catch (_: IOException) {}
+            close()
+        }
+    }
+
+    private fun deliver(line: String) { onLine?.invoke(line) ?: pendingLines.addLast(line) }
+    override fun send(line: String) { outbound.trySend(line) }
+    override fun close() { outbound.close() }
+}
+
+/** Host-side relay handshake: dial out, HOST, and receive the room code. The code doubles
+ *  as the session token, so it is returned alongside the wire. */
+suspend fun hostRelay(relayHost: String, relayPort: Int, scope: CoroutineScope): Pair<Wire, String> {
+    val socket = dialRelay(relayHost, relayPort)
+    withContext(Dispatchers.IO) {
+        val out = socket.getOutputStream()
+        out.write("HOST\n".toByteArray()); out.flush()
+    }
+    val reply = readControlLine(socket)
+    if (!reply.startsWith("CODE ")) throw IOException(makeErrMsg(reply))
+    return Pair(RelayWire(socket, scope), reply.substring(5).trim())
+}
+
+/** Joiner-side relay handshake: dial out, JOIN with a forgiving code (case and separators
+ *  are normalized — the canonical form is lowercase words joined by hyphens). */
+suspend fun joinRelay(relayHost: String, relayPort: Int, code: String, scope: CoroutineScope): Wire {
+    val canonical = canonicalRelayCode(code) ?: throw IOException("Enter the three words of the room code.")
+    val socket = dialRelay(relayHost, relayPort)
+    withContext(Dispatchers.IO) {
+        val out = socket.getOutputStream()
+        out.write(("JOIN $canonical\n").toByteArray()); out.flush()
+    }
+    val reply = readControlLine(socket)
+    if (reply != "OK") throw IOException(makeErrMsg(reply))
+    return RelayWire(socket, scope)
+}
+
+/** "leviathan fira balamb", "LEVIATHAN-FIRA-BALAMB", etc -> "leviathan-fira-balamb".
+ *  Returns null for anything that is not exactly three letter-words. */
+fun canonicalRelayCode(input: String): String? {
+    val tokens = Regex("[a-zA-Z]+").findAll(input).map { it.value.lowercase() }.toList()
+    if (tokens.size != 3) return null
+    return tokens.joinToString("-")
+}
+
+private fun makeErrMsg(reply: String) = when {
+    reply.startsWith("ERR nohost") -> "No match with that code, check it and try again."
+    reply.startsWith("ERR limit") -> "Too many attempts, wait a minute and try again."
+    else -> "Relay: $reply"
+}
+
+private suspend fun dialRelay(host: String, port: Int): Socket = withContext(Dispatchers.IO) {
+    Socket().apply { connect(InetSocketAddress(host, port), 8_000) }
+}
+
+private suspend fun readControlLine(socket: Socket): String = withContext(Dispatchers.IO) {
+    val r = BufferedInputStream(socket.getInputStream())
+    val sb = StringBuilder()
+    while (true) {
+        val c = r.read()
+        if (c <= 0 || c == '\n'.code) break
+        sb.append(c.toChar())
+    }
+    sb.toString()
+}

@@ -1,0 +1,110 @@
+G-  1    Geezard                              Monster     1                1  5  4  1    Common          1    Screw x5
+G-  2    Funguar                              Monster     1                5  3  1  1    Common          1    M-Stone Piece x1
+G-  3    Bite Bug                             Monster     1                1  5  3  3    Common          1    M-Stone Piece x1
+G-  4    Red Bat                              Monster     1                6  2  1  1    Common          1    Vampire Fang x1
+G-  5    Blobra                               Monster     1                2  5  3  1    Common          4    Rune Armlet x1
+G-  6    Gayla                                Monster     1     Thunder    2  4  1  4    Common          1    Mystery Fluid x1
+G-  7    Gesper                               Monster     1                1  1  5  4    Common          1    Black hole x1
+G-  8    Fastitocalon-F                       Monster     1     Earth      3  1  5  2    Common          5    Water Crystal x1
+G-  9    Blood Soul                           Monster     1                2  1  1  6    Common          1    Zombie Powder x1
+G- 10    Caterchipillar                       Monster     1                4  3  2  4    Common          1    Spider Web x1
+G- 11    Cockatrice                           Monster     1     Thunder    2  6  1  2    Common          1    Cockatrice Pinion x1
+G- 12    Grat                                 Monster     2                7  1  1  3    Common          1    Magic Stone x1
+G- 13    Buel                                 Monster     2                6  3  2  2    Common          1    Magic Stone x1
+G- 14    Mesmerize                            Monster     2                5  4  3  3    Common          1    Mesmerize Blade x1
+G- 15    Glacial Eye                          Monster     2     Ice        6  3  1  4    Common          1    Arctic Wind x1
+G- 16    Belhelmel                            Monster     2                3  3  4  5    Common          1    Saw Blade x1
+G- 17    Thrustaevis                          Monster     2     Wind       5  5  3  2    Common          1    Shear Feather x1
+G- 18    Anacondaur                           Monster     2     Poison     5  5  1  3    Common          1    Venom Fang x1
+G- 19    Creeps                               Monster     2     Thunder    5  2  2  5    Common          1    Coral Fragment x1
+G- 20    Grendel                              Monster     2     Thunder    4  2  4  5    Common          1    Dragon Fin x1
+G- 21    Jelleye                              Monster     2                3  7  2  1    Common          1    Magic Stone x1
+G- 22    Grand Mantis                         Monster     2                5  3  2  5    Common          1    Sharp Spike x1
+G- 23    Forbidden                            Monster     3                6  2  6  3    Common          1    Betrayal Sword x1
+G- 24    Armadodo                             Monster     3     Earth      6  6  3  1    Common          1    Dino Bone x1
+G- 25    Tri-Face                             Monster     3     Poison     3  5  5  5    Common          1    Curse Spike x1
+G- 26    Fastitocalon                         Monster     3     Earth      7  3  5  1    Common          1    Water Crystal
+G- 27    Snow Lion                            Monster     3     Ice        7  3  1  5    Common          1    North Wind x1
+G- 28    Ochu                                 Monster     3                5  3  6  3    Common          1    Ochu Tentacle
+G- 29    SAM08G                               Monster     3     Fire       5  4  6  2    Common          1    Running Fire x1
+G- 30    Death Claw                           Monster     3     Fire       4  2  4  7    Common          1    Sharp Spike x1
+G- 31    Cactuar                              Monster     3                6  3  2  6    Common          1    Cactus Thorn x1
+G- 32    Tonberry                             Monster     3                3  4  6  4    Common          1    Chef's Knife x1
+G- 33    Abyss Worm                           Monster     3     Earth      7  5  2  3    Common          1    Dino Bone x1
+G- 34    Turtapod                             Monster     4                2  7  3  6    Common          5    Healing Mail x1
+G- 35    Vysage                               Monster     4                6  5  5  4    Common          1    Wizard Stone x1
+G- 36    T- Rexsaur                           Monster     4                4  7  6  2    Common          2    Dino Bone x2
+G- 37    Bomb                                 Monster     4     Fire       2  3  7  6    Common          1    Bomb Fragment x1
+G- 38    Blitz                                Monster     4     Thunder    1  7  6  4    Common          1    Dynamo Stone x1
+G- 39    Wendigo                              Monster     4                7  6  3  1    Common          1    Steel Orb x1
+G- 40    Torama                               Monster     4                7  4  4  4    Common          5    Life Ring x1
+G- 41    Imp                                  Monster     4                3  6  7  3    Common          1    Wizard Stone x1
+G- 42    Blue Dragon                          Monster     4     Poison     6  3  2  7    Common          4    Fury Fragment
+G- 43    Adamantoise                          Monster     4     Earth      4  6  5  5    Common          4    Fury Fragment x1
+G- 44    Hexadragon                           Monster     4     Fire       7  3  5  4    Common          3    Red Fang x1
+G- 45    Iron Giant                           Monster     5                6  5  5  6    Common          3    Star Fragment x1
+G- 46    Behemoth                             Monster     5                3  7  6  5    Common         10    Barrier x1
+G- 47    Chimera                              Monster     5     Water      7  3  6  5    Common         10    Regen Ring x1
+G- 48    PuPu                                 Monster     5                3  1  A  2    Common          1    Hungry Cooking Pot x1
+G- 49    Elastoid                             Monster     5                6  7  2  6    Common          1    Steel Pipe x1
+G- 50    GIM47N                               Monster     5                5  4  5  7    Common          1    Fast Ammo x10
+G- 51    Malboro                              Monster     5     Poison     7  2  7  4    Common          4    Malboro Tentacle x1
+G- 52    Ruby Dragon                          Monster     5     Fire       7  4  2  7    Common         10    Inferno Fang x1
+G- 53    Elnoyle                              Monster     5                5  6  3  7    Common         10    Energy Crystal x1
+G- 54    Tonberry King                        Monster     5                7  4  6  7    Common          1    Chef's Knife x1
+G- 55    Wedge/Biggs                          Monster     5                6  7  6  2    Common          1    X- Potion x1
+G- 56    Fujin/Raijin                         Boss        6                2  4  8  8    Common          1    X- Potion x1
+G- 57    Elvoret                              Boss        6     Wind       7  4  8  3    Common          1    Death Stone x10
+G- 58    X- ATM092                            Boss        6                4  3  8  7    Common          2    Turtle Shell x1
+G- 59    Granaldo                             Boss        6                7  5  2  8    Common          1    G- Returner x1
+G- 60    Gerogero                             Boss        6     Poison     1  3  8  8    Common         10    Circlet x1
+G- 61    Iguion                               Boss        6                8  2  2  8    Common          1    Cockatrice Pinion x1
+G- 62    Abadon                               Boss        6                6  5  8  4    Common          1    Dark Ammo x30
+G- 63    Trauma                               Boss        6                4  6  8  5    Common          1    Demolition Ammo x30
+G- 64    OilBoyle                             Boss        6                1  8  8  4    Common          1    Fire Ammo x30
+G- 65    Shumi Village                        Boss        6                6  4  5  8    Common          5    Gambler Spirit x1
+G- 66    Krysta                               Boss        6                7  1  5  8    Common          1    Holy Stone x10
+G- 67    Propagator                           Boss        7                8  8  4  4    Common          1    G- Mega Potion x1
+G- 68    Jumbo Cactuar                        Boss        7                8  4  8  4    Common          1    Cactus Thorn x1
+G- 69    Tri- Point                           Boss        7     Thunder    8  8  5  2    Common         40    Jet- Engine x1
+G- 70    Gargantua                            Boss        7                5  8  6  6    Common         10    Strength Love x1
+G- 71    Mobile Type 8                        Boss        7                8  3  6  7    Common          1    Shell Stone x10
+G- 72    Sphinxara                            Boss        7                8  8  3  5    Common          1    G- Mega- Potion x1
+G- 73    Tiamat                               Boss        7                8  4  8  5    Common          1    Flare Stone x10
+G- 74    BGH251F2                             Boss        7                5  5  7  8    Common          1    Protect Stone x10
+G- 75    Red Giant                            Boss        7                6  7  8  4    Common          1    Meteor Stone x10
+G- 76    Catoblepas                           Boss        7                1  7  8  7    Common          1    Rename Card x1
+G- 77    Ultima Weapon                        Boss        7                7  8  7  2    Common          1    Ultima Stone x1
+G- 78    Chubby Chocobo                       G.F.        8                4  9  4  8    Common               LuvLuvG x100
+G- 79    Angelo                               G.F.        8                9  3  6  7    Common               Elixir x100
+G- 80    Gilgamesh                            G.F.        8                3  6  7  9    Common               Holy War x100
+G- 81    Mini Mog                             G.F.        8                9  2  3  9    Common               Pet House x100
+G- 82    Chicobo                              G.F.        8                9  4  4  8    Common               Gysahl Greens x100
+G- 83    Quezacotl                            G.F.        8     Thunder    2  4  9  9    Common               Dynamo Stone x100
+G- 84    Shiva                                G.F.        8     Ice        6  9  7  4    Common               North Wind x100
+G- 85    Ifrit                                G.F.        8     Fire       9  8  6  2    Common               Elem Atk x3
+G- 86    Siren                                G.F.        8                8  2  9  6    Common               Status Atk x3
+G- 87    Sacred                               G.F.        8     Earth      5  9  1  9    Common               Dino Bone x100
+G- 88    Minotaur                             G.F.        8     Earth      9  9  5  2    Common               Adamantine x10
+G- 89    Carbuncle                            G.F.        9                8  4  4  A    Common               Glow Curtain x3
+G- 90    Diablos                              G.F.        9                5  3  A  8    Common               Black Hole x100
+G- 91    Leviathan                            G.F.        9     Water      7  7  A  1    Common               Doc's code x3
+G- 92    Odin                                 G.F.        9                8  5  A  3    Common               Dead Spirit x100
+G- 93    Pandemonium                          G.F.        9     Wind       A  7  1  7    Common               Windmill x100
+G- 94    Cerberus                             G.F.        9                7  A  4  6    Common               Lightweight x100
+G- 95    Alexander                            G.F.        9     Holy       9  2  A  4    Common               Moon Curtain x3
+G- 96    Phoenix                              G.F.        9     Fire       7  A  2  7    Common               Phoenix Spirit x100
+G- 97    Bahamut                              G.F.        9                A  6  8  2    Common               Megalixir x100
+G- 98    Doomtrain                            G.F.        9     Poison     3  A  1  A    Common               Status Guard x3
+G- 99    Eden                                 G.F.        9                4  A  4  9    Common               Monk's code x3
+G-100    Ward Zabac                           Character  10                A  8  7  2    Common               Gaea's Ring x3
+G-101    Kiros Seagill                        Character  10                6  A  7  6    Common               Accerelator x3
+G-102    Laguna Loire                         Character  10                5  9  A  3    Common               Hero x100
+G-103    Selphie Tilmitt                      Character  10                A  4  8  6    Common               Elem Guard x3
+G-104    Quistis Trepe                        Character  10                9  2  6  A    Common               Samantha Soul x3
+G-105    Irvine Kinneas                       Character  10                2  A  6  9    Common               Rocket Engine x3
+G-106    Zell Dincht                          Character  10                8  6  5  A    Common               Hyper Wrist x3
+G-107    Rinoa Heartilly                      Character  10                4  A  A  2    Common               Magic Armlet x3
+G-108    Edea                                 Character  10                A  3  A  3    Common               Royal Crown x3
+G-109    Seifer Almasy                        Character  10                6  4  9  A    Common               Diamond Armor x3
+G-110    Squall Leonhart                      Character  10                A  9  4  6    Common               Three Stars x3

@@ -1,0 +1,25 @@
+# Gradle / JVM
+.gradle/
+build/
+.kotlin/
+
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.xcscmblueprint
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Release signing (NEVER commit)
+triad-release.keystore
+keystore.properties
+*.keystore
+*.jks
+
+# Private relay (never distribute)
+server/
