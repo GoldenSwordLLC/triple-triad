@@ -36,8 +36,10 @@ import com.goldenswordllc.triad.ui.JoinFlowScreen
 import com.goldenswordllc.triad.ui.CreditsScreen
 import com.goldenswordllc.triad.ui.PassRedDeckScreen
 import com.goldenswordllc.triad.ui.OnlineHostScreen
+import com.goldenswordllc.triad.ui.RELAY_HOST
+import com.goldenswordllc.triad.ui.RELAY_PORT
 import com.goldenswordllc.triad.ui.OnlineJoinScreen
-import com.goldenswordllc.triad.ui.parseRelayAddr
+
 import com.goldenswordllc.triad.ui.DeckManagerScreen
 import com.goldenswordllc.triad.ui.MenuScreen
 import com.goldenswordllc.triad.ui.MultiplayerScreen
@@ -206,9 +208,8 @@ class MainActivity : ComponentActivity() {
                             onMultiplayer = { screen = Screen.Multiplayer },
                         )
                     Screen.OnlineHost -> {
-                        val addr = parseRelayAddr(getSharedPreferences("triad", MODE_PRIVATE).getString("relay", "") ?: "")!!
                         OnlineHostScreen(
-                            relayHost = addr.first, relayPort = addr.second,
+                            relayHost = RELAY_HOST, relayPort = RELAY_PORT,
                             catalog = catalog,
                             myDeckIds = battleDeck(save.value, catalog).map { it.id },
                             cardCount = save.value.collection.values.sum(),
@@ -219,9 +220,8 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     Screen.OnlineJoin -> {
-                        val addr = parseRelayAddr(getSharedPreferences("triad", MODE_PRIVATE).getString("relay", "") ?: "")!!
                         OnlineJoinScreen(
-                            relayHost = addr.first, relayPort = addr.second,
+                            relayHost = RELAY_HOST, relayPort = RELAY_PORT,
                             catalog = catalog,
                             myDeckIds = battleDeck(save.value, catalog).map { it.id },
                             onMatchStarted = { session, state, color ->
@@ -238,7 +238,6 @@ class MainActivity : ComponentActivity() {
                             onPassPlay = { gatePack { screen = Screen.PassRedPick(battleDeck(save.value, catalog)) } },
                             onHost = { gatePack { screen = Screen.Host } },
                             onJoin = { gatePack { screen = Screen.Join } },
-                            relayConfigured = parseRelayAddr(getSharedPreferences("triad", MODE_PRIVATE).getString("relay", "") ?: "") != null,
                             onHostOnline = { gatePack { screen = Screen.OnlineHost } },
                             onJoinOnline = { gatePack { screen = Screen.OnlineJoin } },
                             onBack = { screen = Screen.Menu },

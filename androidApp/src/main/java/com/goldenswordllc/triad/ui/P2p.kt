@@ -420,7 +420,7 @@ fun JoinFlowScreen(
 @Composable
 fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Unit,
                       onPassPlay: () -> Unit, onHost: () -> Unit, onJoin: () -> Unit,
-                      relayConfigured: Boolean = false, onHostOnline: () -> Unit = {}, onJoinOnline: () -> Unit = {},
+                      onHostOnline: () -> Unit = {}, onJoinOnline: () -> Unit = {},
                       onBack: () -> Unit) {
     var askForDeck by remember { mutableStateOf<(() -> Unit)?>(null) }
     var tooFewCards by remember { mutableStateOf(false) }
@@ -467,24 +467,6 @@ fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Uni
                 Column(Modifier.fillMaxSize(),
                        horizontalAlignment = Alignment.CenterHorizontally,
                        verticalArrangement = Arrangement.Center) {
-    var needRelay by remember { mutableStateOf(false) }
-    if (needRelay) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { needRelay = false },
-            containerColor = Color(30, 22, 8),
-            title = { Text("Online play needs a relay", color = Color(255, 240, 200), fontWeight = FontWeight.Bold) },
-            text = { Text("Set your relay server's address in Settings under ONLINE PLAY, then come back. " +
-                          "Anyone can run one: it's a single small Python file from the repo.",
-                          color = Color(245, 238, 220)) },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { needRelay = false; onBack() }) {
-                    Text("OK", color = Color(255, 200, 100), fontWeight = FontWeight.Bold)
-                }
-            },
-        )
-    }
-    fun gateOnline(mode: () -> Unit): () -> Unit =
-        if (!relayConfigured) { { needRelay = true } } else gateTrading(mode)
                     Text("ONE PHONE", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     GoldButton("PASS & PLAY", onClick = gate(onPassPlay))
                     Spacer(Modifier.height(18.dp))
@@ -493,8 +475,8 @@ fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Uni
                     GoldButton("JOIN A MATCH", sub = "scan a QR code", onClick = gateTrading(onJoin))
                     Spacer(Modifier.height(18.dp))
                     Text("ANY DISTANCE — ONLINE", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    GoldButton("HOST A ROOM", sub = "get a room code", onClick = gateOnline(onHostOnline))
-                    GoldButton("JOIN WITH A CODE", sub = "enter your friend's code", onClick = gateOnline(onJoinOnline))
+                    GoldButton("HOST A ROOM", sub = "get a room code", onClick = gateTrading(onHostOnline))
+                    GoldButton("JOIN WITH A CODE", sub = "enter your friend's code", onClick = gateTrading(onJoinOnline))
                 }
             }
             Spacer(Modifier.height(12.dp))

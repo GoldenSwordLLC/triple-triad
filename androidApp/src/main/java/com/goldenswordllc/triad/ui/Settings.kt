@@ -94,24 +94,6 @@ fun SettingsScreen(record: PlayerSave, lastCrash: String?, onWipeRecord: () -> U
                     Text("fan project, Square Enix owns Triple Triad",
                          color = Color(170, 150, 110), fontSize = 10.sp)
 
-                    sectionHeader("ONLINE PLAY")
-                    val ctx2 = LocalContext.current
-                    var relay by remember {
-                        mutableStateOf(ctx2.getSharedPreferences("triad", android.content.Context.MODE_PRIVATE)
-                            .getString("relay", "") ?: "")
-                    }
-                    OutlinedTextField(relay, { relay = it
-                        ctx2.getSharedPreferences("triad", android.content.Context.MODE_PRIVATE)
-                            .edit().putString("relay", it.trim()).apply()
-                    }, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        placeholder = { Text("yourserver.com:44000", color = Color(150, 130, 90), fontSize = 13.sp) },
-                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Gold, unfocusedBorderColor = Color(150, 130, 90),
-                            focusedTextColor = Cream, unfocusedTextColor = Cream, cursorColor = Gold,
-                        ))
-                    Text("relay address for online matches, host or host:port",
-                         color = Color(170, 150, 110), fontSize = 10.sp)
-
                     sectionHeader("DIAGNOSTICS")
                     Text(
                         if (lastCrash != null) "SAVE LAST ERROR TO FILE…"

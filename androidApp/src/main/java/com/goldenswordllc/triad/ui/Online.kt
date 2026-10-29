@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import triad.net.hostRelay
 import triad.net.canonicalRelayCode
+
 import triad.net.joinRelay
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,18 +34,8 @@ import triad.core.TradeRule
 import triad.core.maxLoss
 import triad.net.P2pSession
 
-fun parseRelayAddr(raw: String): Pair<String, Int>? {
-    val s = raw.trim()
-    if (s.isEmpty()) return null
-    val idx = s.lastIndexOf(':')
-    if (idx > 0) {
-        val port = s.substring(idx + 1).toIntOrNull() ?: return null
-        if (port !in 1..65535) return null
-        val host = s.substring(0, idx)
-        return host.takeIf { it.isNotBlank() }?.let { it to port }
-    }
-    return s to 44000
-}
+const val RELAY_HOST = "triad.goldenswordllc.com"
+const val RELAY_PORT = 44000
 
 class OnlineHostViewModel(
     private val relayHost: String,
