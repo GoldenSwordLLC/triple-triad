@@ -36,7 +36,7 @@ private class StubRelay {
         val first = r.readLine() ?: return sock.close()
         when (first.trim().uppercase().substringBefore(" ")) {
             "HOST" -> {
-                val code = "geezard-fira-balamb"
+                val code = "53DA92"
                 hosts[code] = sock
                 early[code] = mutableListOf()
                 sock.getOutputStream().write("CODE $code\n".toByteArray())
@@ -124,12 +124,12 @@ class RelayLoopbackTest {
         }.associateBy { it.id }
 
         val (hostWire, code) = hostRelay("127.0.0.1", relay.port, scope)
-        assertEquals("geezard-fira-balamb", code)
+        assertEquals("53DA92", code)
         val host = P2pSession(hostWire, isHost = true, myName = "Host", token = code,
             catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.blue),
             hostSettings = MatchSettings(trade = TradeRule.one))
 
-        val joinWire = joinRelay("127.0.0.1", relay.port, "GEEZARD FIRA BALAMB", scope)
+        val joinWire = joinRelay("127.0.0.1", relay.port, "53 da 92", scope)
         val joiner = P2pSession(joinWire, isHost = false, myName = "Joiner", token = code,
             catalog = catalog, me = P2pSession.PlayerLocal((6..10).map { "c$it" }, emptyList(), ColorPref.red),
             hostSettings = null)
@@ -170,10 +170,18 @@ class RelayLoopbackTest {
     }
 
     @Test fun `a wrong code is refused and canonicalization rejects junk`() {
-        assertEquals("squall-fira-balamb", canonicalRelayCode("SQUALL fira-BALAMB"))
-        assertEquals("a-b-c", canonicalRelayCode("a b c"))
-        assertEquals("only-two-words", canonicalRelayCode("only two words"))
-        assertNull(canonicalRelayCode("four word code here"))
+        assertEquals("53DA92", canonicalRelayCode("53da92"))
+        assertEquals("53DA92", canonicalRelayCode("53 DA 92"))
+        assertEquals("53DA92", canonicalRelayCode("53-da-92"))
+        assertNull(canonicalRelayCode("53DA9"))          // too short
+        assertNull(canonicalRelayCode("53DA921"))        // too long
+        assertNull(canonicalRelayCode("53IA91"))         // I excluded
+        assertNull(canonicalRelayCode("53LA91"))         // L excluded
+        assertNull(canonicalRelayCode("53OA91"))         // O excluded
+        assertNull(canonicalRelayCode("50DA91"))         // 0 excluded
+        assertNull(canonicalRelayCode("51DA91"))         // 1 excluded
+        assertNull(canonicalRelayCode("DA5391"))         // wrong block order
+        assertNull(canonicalRelayCode("leviathan fira balamb"))
         assertNull(canonicalRelayCode(""))
     }
 }

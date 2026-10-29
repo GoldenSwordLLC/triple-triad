@@ -246,13 +246,13 @@ fun OnlineJoinScreen(
                            verticalArrangement = Arrangement.Center) {
                         Text("JOIN ONLINE", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(10.dp))
-                        Text("enter the three words your friend reads you", color = Color(190, 175, 145),
+                        Text("enter the 6-character code your friend reads you", color = Color(190, 175, 145),
                              fontSize = 11.sp)
                         Spacer(Modifier.height(12.dp))
                         OutlinedTextField(code, { code = it; errorMsg = null },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            placeholder = { Text("leviathan fira balamb", color = Color(150, 130, 90), fontSize = 13.sp) },
+                            placeholder = { Text("53DA92", color = Color(150, 130, 90), fontSize = 13.sp) },
                             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Color(0xFFD4AF37),

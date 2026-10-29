@@ -71,7 +71,7 @@ suspend fun hostRelay(relayHost: String, relayPort: Int, scope: CoroutineScope):
 /** Joiner-side relay handshake: dial out, JOIN with a forgiving code (case and separators
  *  are normalized — the canonical form is lowercase words joined by hyphens). */
 suspend fun joinRelay(relayHost: String, relayPort: Int, code: String, scope: CoroutineScope): Wire {
-    val canonical = canonicalRelayCode(code) ?: throw IOException("Enter the three words of the room code.")
+    val canonical = canonicalRelayCode(code) ?: throw IOException("Codes look like 53DA92.")
     val socket = dialRelay(relayHost, relayPort)
     withContext(Dispatchers.IO) {
         val out = socket.getOutputStream()
@@ -82,12 +82,11 @@ suspend fun joinRelay(relayHost: String, relayPort: Int, code: String, scope: Co
     return RelayWire(socket, scope)
 }
 
-/** "leviathan fira balamb", "LEVIATHAN-FIRA-BALAMB", etc -> "leviathan-fira-balamb".
- *  Returns null for anything that is not exactly three letter-words. */
+/** "53da91", "53 DA 91", "53-da-91" etc -> "53DA92" (2 digits, 2 letters, 2 digits,
+ *  confusable-free alphabet: no I/O/L/0/1). Returns null for any other shape. */
 fun canonicalRelayCode(input: String): String? {
-    val tokens = Regex("[a-zA-Z]+").findAll(input).map { it.value.lowercase() }.toList()
-    if (tokens.size != 3) return null
-    return tokens.joinToString("-")
+    val compact = input.uppercase().filter { it.isLetterOrDigit() }
+    return if (Regex("^[2-9]{2}[A-HJ-KM-NP-Z]{2}[2-9]{2}$").matches(compact)) compact else null
 }
 
 private fun makeErrMsg(reply: String) = when {

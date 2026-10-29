@@ -73,7 +73,7 @@ on the opponent's turn.
 
 ## Online play (any distance)
 
-Two phones can also play through a relay: the host gets a three-word code,
+Two phones can also play through a relay: the host gets a short room code,
 the joiner types it, and both phones dial out, so it works behind any NAT.
 Neither player's IP is ever exposed to the other, and a mid-match
 disconnect awards the win to the remaining player.

@@ -493,8 +493,8 @@ fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Uni
                     GoldButton("JOIN A MATCH", sub = "scan a QR code", onClick = gateTrading(onJoin))
                     Spacer(Modifier.height(18.dp))
                     Text("ANY DISTANCE — ONLINE", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    GoldButton("HOST A ROOM", sub = "get a three-word code", onClick = gateOnline(onHostOnline))
-                    GoldButton("JOIN WITH A CODE", sub = "enter your friend's words", onClick = gateOnline(onJoinOnline))
+                    GoldButton("HOST A ROOM", sub = "get a room code", onClick = gateOnline(onHostOnline))
+                    GoldButton("JOIN WITH A CODE", sub = "enter your friend's code", onClick = gateOnline(onJoinOnline))
                 }
             }
             Spacer(Modifier.height(12.dp))
