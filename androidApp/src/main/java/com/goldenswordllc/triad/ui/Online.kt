@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import triad.net.hostRelay
+import triad.net.canonicalRelayCode
 import triad.net.joinRelay
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -271,8 +272,10 @@ fun OnlineJoinScreen(
                             busy = true; errorMsg = null
                             scope.launch {
                                 try {
-                                    val wire = joinRelay(relayHost, relayPort, code, wireScope)
-                                    val s = P2pSession(wire, isHost = false, myName = "Joiner", token = code.lowercase(),
+                                    val canonical = canonicalRelayCode(code)
+                                        ?: throw java.io.IOException("Codes look like 53DA92.")
+                                    val wire = joinRelay(relayHost, relayPort, canonical, wireScope)
+                                    val s = P2pSession(wire, isHost = false, myName = "Joiner", token = canonical,
                                         catalog = catalog,
                                         me = P2pSession.PlayerLocal(myDeckIds, emptyList(), ColorPref.any),
                                         hostSettings = null)

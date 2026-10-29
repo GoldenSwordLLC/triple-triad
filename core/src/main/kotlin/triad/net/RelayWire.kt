@@ -91,7 +91,7 @@ fun canonicalRelayCode(input: String): String? {
 
 private fun makeErrMsg(reply: String) = when {
     reply.startsWith("ERR nohost") -> "No match with that code, check it and try again."
-    reply.startsWith("ERR limit") -> "Too many attempts, wait a minute and try again."
+    reply.startsWith("ERR limit") -> "Too many attempts, try again in 15 minutes."
     else -> "Relay: $reply"
 }
 
