@@ -23,3 +23,9 @@ keystore.properties
 
 # Private relay (never distribute)
 server/
+
+# Relay guards (belt and suspenders)
+relay.py
+relay_test.py
+relay.db
+*.db

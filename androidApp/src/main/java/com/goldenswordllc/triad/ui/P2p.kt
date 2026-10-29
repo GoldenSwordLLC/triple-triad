@@ -536,7 +536,9 @@ class P2pMatchViewModel(
                         onTransfers(e.transfers, myColor)
                         session.teardown()
                     }
-                    is SessionEvent.Forfeit -> ended = e.reason
+                    is SessionEvent.Forfeit -> ended = if (e.winner == myColor) {
+                        if (e.reason.contains("resign")) "WIN BY RESIGN" else "WIN BY DISCONNECT"
+                    } else e.reason
                     is SessionEvent.Declined -> ended = e.detail
                     is SessionEvent.Disconnected -> ended = e.detail
                     is SessionEvent.ProtocolError -> ended = "${e.code}: ${e.detail}"

@@ -185,9 +185,11 @@ private fun TransportNote(note: String?) {
 
 @Composable
 fun WaitingPane(text: String, onExit: () -> Unit) {
+    val isWin = text.startsWith("WIN BY")
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text, color = Color(255, 240, 200), fontSize = 16.sp, fontWeight = FontWeight.Bold,
+            Text(text, color = if (isWin) Color(140, 200, 140) else Color(255, 240, 200),
+                 fontSize = if (isWin) 24.sp else 16.sp, fontWeight = FontWeight.Bold,
                  textAlign = TextAlign.Center,
                  modifier = Modifier.clip(RoundedCornerShape(12.dp))
                      .background(Color(22, 15, 6).copy(alpha = 0.88f))
