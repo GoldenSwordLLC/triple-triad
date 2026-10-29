@@ -49,14 +49,14 @@ class OnlineHostViewModel(
     val error = MutableStateFlow<String?>(null)
     private var wire: triad.net.Wire? = null
 
-    fun start(name: String, settings: MatchSettings) {
+    fun start(settings: MatchSettings) {
         if (session.value != null || code.value != null) return
         scope.launch {
             try {
                 val (w, room) = hostRelay(relayHost, relayPort, scope)
                 wire = w
                 code.value = room
-                val s = P2pSession(w, isHost = true, myName = name, token = room, catalog = catalog,
+                val s = P2pSession(w, isHost = true, myName = "Host", token = room, catalog = catalog,
                     me = P2pSession.PlayerLocal(myDeckIds, emptyList(), ColorPref.any),
                     hostSettings = settings)
                 s.start()
@@ -85,7 +85,6 @@ fun OnlineHostScreen(
     val code by vm.code.collectAsState()
     val session by vm.session.collectAsState()
     val error by vm.error.collectAsState()
-    var name by remember { mutableStateOf("Host") }
     var trade by remember { mutableStateOf(TradeRule.one) }
     fun ruleAllowed(rule: TradeRule): Boolean = cardCount - rule.maxLoss() >= 5
 
@@ -138,18 +137,6 @@ fun OnlineHostScreen(
                                verticalArrangement = Arrangement.Center) {
                             Text("HOST ONLINE", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(14.dp))
-                            Text("Your name", color = Color(230, 205, 160), fontSize = 11.sp,
-                                 fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-                            OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color(0xFFD4AF37),
-                                    unfocusedBorderColor = Color(150, 130, 90),
-                                    focusedTextColor = Color(245, 238, 220),
-                                    unfocusedTextColor = Color(245, 238, 220),
-                                    cursorColor = Color(0xFFD4AF37),
-                                ))
-                            Spacer(Modifier.height(14.dp))
                             Text("TRADE RULE, what the loser gives up", color = Color(230, 205, 160),
                                  fontSize = 11.sp, fontWeight = FontWeight.Bold,
                                  modifier = Modifier.align(Alignment.Start))
@@ -189,7 +176,7 @@ fun OnlineHostScreen(
                                  color = Color(245, 238, 220), fontSize = 11.sp,
                                  textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                             Spacer(Modifier.height(16.dp))
-                            GoldButton("HOST A ROOM  ▶", filled = true) { vm.start(name, MatchSettings(trade = trade)) }
+                            GoldButton("HOST A ROOM  ▶", filled = true) { vm.start(MatchSettings(trade = trade)) }
                             error?.let {
                                 Spacer(Modifier.height(8.dp))
                                 Text("ERROR: $it", color = Color(255, 120, 100), fontWeight = FontWeight.Bold)

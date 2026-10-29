@@ -72,7 +72,6 @@ fun HostLobbyScreen(
     val session by vm.session.collectAsState()
     val error by vm.error.collectAsState()
     val transport by vm.transport.collectAsState()
-    var name by remember { mutableStateOf("Host") }
     var started by remember { mutableStateOf(false) }
     var trade by remember { mutableStateOf(TradeRule.one) }
     fun ruleAllowed(rule: TradeRule): Boolean = cardCount - rule.maxLoss() >= 5
@@ -89,7 +88,6 @@ fun HostLobbyScreen(
     fun begin(bleEnabled: Boolean) {
         started = true
         vm.start(
-            name = name,
             settings = MatchSettings(trade = trade),
             me = P2pSession.PlayerLocal(myDeckIds, emptyList(), ColorPref.any),
             bleEnabled = bleEnabled,
@@ -197,20 +195,6 @@ fun HostLobbyScreen(
                                verticalArrangement = Arrangement.Center) {
                             Text("HOST A MATCH", color = P2pCream, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(14.dp))
-                            Text("Your name", color = Color(230, 205, 160), fontSize = 11.sp,
-                                 fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-                    OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFD4AF37),
-                            unfocusedBorderColor = Color(150, 130, 90),
-                            focusedTextColor = Color(245, 238, 220),
-                            unfocusedTextColor = Color(245, 238, 220),
-                            cursorColor = Color(0xFFD4AF37),
-                            focusedLabelColor = Color(230, 205, 160),
-                            unfocusedLabelColor = Color(190, 175, 145),
-                        ))
-                    Spacer(Modifier.height(14.dp))
                     Text("TRADE RULE, what the loser gives up", color = Color(230, 205, 160), fontSize = 11.sp,
                          fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
                     Spacer(Modifier.height(6.dp))

@@ -73,8 +73,8 @@ class HostViewModel(private val app: Application, private val catalog: Map<Strin
         super.onCleared()
     }
 
-    fun start(name: String, settings: MatchSettings, me: P2pSession.PlayerLocal, bleEnabled: Boolean = true) {
-        myName = name
+    fun start(settings: MatchSettings, me: P2pSession.PlayerLocal, bleEnabled: Boolean = true) {
+        myName = "Host"
         val token = randomHex(4)
         scope.launch(Dispatchers.IO) {
             try {
@@ -87,12 +87,12 @@ class HostViewModel(private val app: Application, private val catalog: Map<Strin
                     if (bleEnabled) startBle(token, settings, me, onlyRadio = true)
                     else error.value = "No Wi-Fi and Bluetooth hosting is off, enable Bluetooth to host."
                     withContext(Dispatchers.Main) {
-                        qrPayload.value = "triad://v1?tr=ble&name=${Uri.encode(name)}&t=$token"
+                        qrPayload.value = "triad://v1?tr=ble&name=Host&t=$token"
                     }
                     return@launch
                 }
                 withContext(Dispatchers.Main) {
-                    qrPayload.value = "triad://v1?tr=tcp&ip=$ip&port=${server.localPort}&name=${Uri.encode(name)}&t=$token"
+                    qrPayload.value = "triad://v1?tr=tcp&ip=$ip&port=${server.localPort}&name=Host&t=$token"
                 }
                 if (bleEnabled) startBle(token, settings, me, onlyRadio = false)
                 val socket = try { server.accept() } catch (_: IOException) { return@launch }
