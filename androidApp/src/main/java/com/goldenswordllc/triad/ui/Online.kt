@@ -100,7 +100,9 @@ fun OnlineHostScreen(
     onExit: () -> Unit,
 ) {
     val vm = remember { OnlineHostViewModel(relayHost, relayPort, catalog, myDeckIds) }
-    DisposableEffect(vm) { onDispose { vm.shutdown() } }
+    // NOTE: no shutdown-on-dispose here. Navigation to the match screen disposes this
+    // composable, and closing the host wire at that moment would hang up on the joiner
+    // mid-match; the VM's scope ends with its explicit Cancel or app exit instead.
     val code by vm.code.collectAsState()
     val session by vm.session.collectAsState()
     val error by vm.error.collectAsState()

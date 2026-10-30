@@ -53,36 +53,50 @@ class RealRelayTest {
                     hostSettings = null)
 
                 var hostColor = Owner.blue
-                val hostDone = CompletableDeferred<SessionEvent.Outcome>()
-                val joinDone = CompletableDeferred<SessionEvent.Outcome>()
-                fun drive(s: P2pSession, done: CompletableDeferred<SessionEvent.Outcome>) {
+                val hostOver = CompletableDeferred<SessionEvent.Outcome>()
+                val joinOver = CompletableDeferred<SessionEvent.Outcome>()
+                val gameFault = CompletableDeferred<String>()
+
+                fun drive(s: P2pSession, done: CompletableDeferred<SessionEvent.Outcome>, isHostSide: Boolean) {
                     scope.launch {
                         s.eventsFlow.collect { e ->
                             when (e) {
                                 is SessionEvent.RulesProposed -> s.acceptRules()
                                 is SessionEvent.VerifyDecks -> s.ready()
                                 is SessionEvent.MatchStarted -> {
-                                    if (s === host) hostColor = e.myColor
+                                    if (isHostSide) hostColor = e.myColor
                                     if (!e.state.isOver && e.state.turn == e.myColor)
                                         s.play(0, e.state.board.cells.indices.first { e.state.board[it].card == null })
                                 }
                                 is SessionEvent.MoveApplied -> {
-                                    val mine = if (s === host) hostColor else hostColor.other
+                                    val mine = if (isHostSide) hostColor else hostColor.other
                                     if (!e.state.isOver && e.state.turn == mine)
                                         s.play(0, e.state.board.cells.indices.first { e.state.board[it].card == null })
                                 }
                                 is SessionEvent.GameOver -> done.complete(e.outcome)
+                                is SessionEvent.ProtocolError -> gameFault.complete("${e.code} ${e.detail}")
+                                is SessionEvent.Disconnected -> gameFault.complete("disconnected")
+                                is SessionEvent.Forfeit -> gameFault.complete("forfeit")
                                 else -> {}
                             } }
                     }
                 }
-                drive(host, hostDone)
-                drive(joiner, joinDone)
+                drive(host, hostOver, true)
+                drive(joiner, joinOver, false)
                 host.start(); joiner.start()
 
-                val ho = withTimeout(30_000) { hostDone.await() }
-                val jo = withTimeout(30_000) { joinDone.await() }
-                assertTrue(ho !is SessionEvent.Outcome.Lost && jo !is SessionEvent.Outcome.Won, "host=$ho joiner=$jo")
+                val outcome = withTimeoutOrNull(30_000) {
+                    while (!hostOver.isCompleted && !joinOver.isCompleted && !gameFault.isCompleted) delay(100)
+                    val h = if (hostOver.isCompleted) hostOver.await() else null
+                    val j = if (joinOver.isCompleted) joinOver.await() else null
+                    when {
+                        gameFault.isCompleted -> "FAULT: ${gameFault.await()}"
+                        else -> "DONE host=${h?.javaClass?.simpleName} joiner=${j?.javaClass?.simpleName}"
+                    }
+                }
+                assertNotNull(outcome, "GAME FROZE mid-match against the real relay (30s, no outcome, no fault)")
+                println("OUTCOME: $outcome")
+                assertTrue(!outcome.startsWith("FAULT"), outcome)
 
                 val hostClosed = CountDownLatch(1)
                 hostWire.onClose = { hostClosed.countDown() }
