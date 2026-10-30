@@ -597,6 +597,8 @@ fun P2pMatchScreen(
         }
 
         var viewBoard by remember { mutableStateOf(false) }
+        var tradeOpen by remember { mutableStateOf(false) }
+        LaunchedEffect(vm.result?.applied) { if (vm.result?.applied == true) tradeOpen = false }
 
         LaunchedEffect(vm.result) { viewBoard = false }
         when {
@@ -610,8 +612,6 @@ fun P2pMatchScreen(
                 onProposeTrade = if (vm.result?.applied == false) { { tradeOpen = true } } else null,
             )
         }
-        var tradeOpen by remember { mutableStateOf(false) }
-        LaunchedEffect(vm.result?.applied) { if (vm.result?.applied == true) tradeOpen = false }
         if (tradeOpen && vm.result != null && !viewBoard && vm.ended == null) {
             FriendlyTradePanel(vm = vm, catalog = catalog, onClose = { tradeOpen = false })
         }
