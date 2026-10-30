@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class TradeHostViewModel(
     private val lanIpAvailable: String?,
+    private val catalog: Map<String, CardDef>,
     private val myCollection: Map<String, Int>,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -82,7 +83,7 @@ class TradeHostViewModel(
 
     private fun attach(w: Wire, token: String) {
         val s = TradeSession(w, isHost = true, myName = "Host", token = token,
-            catalog = emptyMap(), myCollection = myCollection)
+            catalog = catalog, myCollection = myCollection)
         // catalog fills on Ready via the UI layer (cards render from the app catalog)
         s.start()
         session.value = s
@@ -93,19 +94,21 @@ class TradeHostViewModel(
 
 @Composable
 fun TradeHostScreen(
+    catalog: Map<String, CardDef>,
     myCollection: Map<String, Int>,
     onTradeReady: (TradeSession) -> Unit,
     onExit: () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val lan = remember { if (isOnWifi(context)) lanIp() else null }
-    val vm = remember { TradeHostViewModel(lan, myCollection) }
+    val vm = remember { TradeHostViewModel(lan, catalog, myCollection) }
     LaunchedEffect(Unit) {
         vm.start()
         while (vm.session.value == null) delay(100)
         onTradeReady(vm.session.value!!)
     }
-    DisposableEffect(Unit) { onDispose { vm.shutdown() } }
+    // NO shutdown-on-dispose: navigating to the trade room disposes this screen, and
+    // closing the wire there would hang up mid-trade (same trap as the online match)
 
     Box(Modifier.fillMaxSize()) {
         MatBackground(Modifier.matchParentSize(), dim = 0.3f)
@@ -153,6 +156,7 @@ fun TradeHostScreen(
 
 @Composable
 fun TradeJoinScreen(
+    catalog: Map<String, CardDef>,
     myCollection: Map<String, Int>,
     onTradeReady: (TradeSession) -> Unit,
     onExit: () -> Unit,
@@ -165,7 +169,7 @@ fun TradeJoinScreen(
 
     fun attach(w: Wire, token: String) {
         val s = TradeSession(w, isHost = false, myName = "Joiner", token = token,
-            catalog = emptyMap(), myCollection = myCollection)
+            catalog = catalog, myCollection = myCollection)
         s.start()
         onTradeReady(s)
     }

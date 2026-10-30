@@ -216,12 +216,14 @@ class MainActivity : ComponentActivity() {
                         )
                     Screen.TradeHost ->
                         TradeHostScreen(
+                            catalog = catalog,
                             myCollection = save.value.collection,
                             onTradeReady = { session -> screen = Screen.TradeRoom(session) },
                             onExit = { screen = Screen.Multiplayer },
                         )
                     Screen.TradeJoin ->
                         TradeJoinScreen(
+                            catalog = catalog,
                             myCollection = save.value.collection,
                             onTradeReady = { session -> screen = Screen.TradeRoom(session) },
                             onExit = { screen = Screen.Multiplayer },
