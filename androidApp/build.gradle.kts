@@ -19,8 +19,8 @@ android {
         applicationId = "com.goldenswordllc.triad"
         minSdk = 26
         targetSdk = 34
-        versionCode = 48
-        versionName = "0.9.7"
+        versionCode = 49
+        versionName = "0.9.8"
     }
 
     signingConfigs {

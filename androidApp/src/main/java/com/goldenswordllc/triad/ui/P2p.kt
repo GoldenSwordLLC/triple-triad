@@ -607,19 +607,13 @@ fun P2pMatchScreen(
                 myColor = vm.myColor,
                 onConfirmPick = vm::confirmPick,
                 onDone = { vm.done(); onExit() },
+                onProposeTrade = if (vm.result?.applied == false) { { tradeOpen = true } } else null,
             )
         }
-        if (vm.result != null && !viewBoard && vm.ended == null) {
-            var tradeOpen by remember { mutableStateOf(false) }
-            LaunchedEffect(vm.result?.applied) { if (vm.result?.applied == true) tradeOpen = false }
-            if (!tradeOpen) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                    GoldAction("⚖  PROPOSE TRADE", filled = false,
-                               modifier = Modifier.padding(bottom = 10.dp)) { tradeOpen = true }
-                }
-            } else {
-                FriendlyTradePanel(vm = vm, catalog = catalog, onClose = { tradeOpen = false })
-            }
+        var tradeOpen by remember { mutableStateOf(false) }
+        LaunchedEffect(vm.result?.applied) { if (vm.result?.applied == true) tradeOpen = false }
+        if (tradeOpen && vm.result != null && !viewBoard && vm.ended == null) {
+            FriendlyTradePanel(vm = vm, catalog = catalog, onClose = { tradeOpen = false })
         }
         if (vm.result != null && viewBoard) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {

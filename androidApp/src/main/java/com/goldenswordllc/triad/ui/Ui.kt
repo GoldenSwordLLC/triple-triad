@@ -383,14 +383,16 @@ data class ResultState(
 fun EndOfMatchHost(
     result: ResultState, peerName: String, myColor: Owner,
     onConfirmPick: (List<String>) -> Unit, onDone: () -> Unit,
+    onProposeTrade: (() -> Unit)? = null,
 ) {
     val pending = (result.outcome as? SessionEvent.Outcome.Won)?.pendingPick
     if (pending != null && !result.applied) TradePickScreen(pending, peerName, myColor.other, onConfirmPick)
-    else MatchResultScreen(result, myColor, onDone)
+    else MatchResultScreen(result, myColor, onDone, onProposeTrade)
 }
 
 @Composable
-fun MatchResultScreen(state: ResultState, myColor: Owner, onDone: () -> Unit) {
+fun MatchResultScreen(state: ResultState, myColor: Owner, onDone: () -> Unit,
+                      onProposeTrade: (() -> Unit)? = null) {
     Box(Modifier.fillMaxSize()
             .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                        indication = null) {}
@@ -415,6 +417,15 @@ fun MatchResultScreen(state: ResultState, myColor: Owner, onDone: () -> Unit) {
             if (gained.isNotEmpty()) TransferRow("Cards gained", gained, owner = myColor.other)
             if (lost.isNotEmpty()) TransferRow("Cards lost", lost, owner = myColor)
             Spacer(Modifier.weight(1f))
+            if (onProposeTrade != null && !state.awaitingPeerPick) {
+                Text("⚖  PROPOSE TRADE", color = Color(230, 205, 160), fontWeight = FontWeight.Bold,
+                     textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
+                         .clip(RoundedCornerShape(12.dp))
+                         .background(Color(30, 22, 8))
+                         .border(1.dp, Color(0xFFD4AF37), RoundedCornerShape(12.dp))
+                         .clickable { onProposeTrade() }.padding(vertical = 10.dp))
+                Spacer(Modifier.height(8.dp))
+            }
             Text("DONE", color = Color(255, 240, 200), fontWeight = FontWeight.Bold,
                  textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                      .clip(RoundedCornerShape(12.dp))
