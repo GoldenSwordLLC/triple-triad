@@ -451,23 +451,43 @@ fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Uni
 
             Box(Modifier.weight(1f).fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp)).background(Color(22, 15, 6).copy(alpha = 0.88f))) {
-                Column(Modifier.fillMaxSize(),
+                Column(Modifier.fillMaxSize().padding(horizontal = 10.dp),
                        horizontalAlignment = Alignment.CenterHorizontally,
                        verticalArrangement = Arrangement.Center) {
-                    Text("ONE PHONE", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    GoldButton("PASS & PLAY", onClick = gate(onPassPlay))
-                    Spacer(Modifier.height(18.dp))
-                    Text("TWO PHONES, NEARBY (WI-FI OR BLUETOOTH)", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    GoldButton("HOST A MATCH", sub = "show your QR code", onClick = gateTrading(onHost))
-                    GoldButton("JOIN A MATCH", sub = "scan a QR code", onClick = gateTrading(onJoin))
-                    Spacer(Modifier.height(18.dp))
-                    Text("ANY DISTANCE — ONLINE", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    GoldButton("HOST A ROOM", sub = "get a room code", onClick = gateTrading(onHostOnline))
-                    GoldButton("JOIN WITH A CODE", sub = "enter your friend's code", onClick = gateTrading(onJoinOnline))
-                    Spacer(Modifier.height(18.dp))
-                    Text("TRADE CARDS, no match needed", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    GoldButton("HOST A TRADE", sub = "QR for nearby, code for online", onClick = gateTrading(onTradeHost))
-                    GoldButton("JOIN A TRADE", sub = "scan or enter a code", onClick = gateTrading(onTradeJoin))
+                    // one decision at a time: match or trade, then how to connect
+                    var tab by remember { mutableStateOf("match") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("match" to "PLAY A MATCH", "trade" to "TRADE CARDS").forEach { (key, label) ->
+                            val sel = tab == key
+                            Box(Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (sel) Gold else Color(30, 22, 8).copy(alpha = 0.85f))
+                                .border(if (sel) 2.dp else 1.dp, Gold, RoundedCornerShape(10.dp))
+                                .clickable { tab = key }
+                                .padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                Text(label, color = if (sel) Color(55, 38, 10) else Color(255, 240, 200),
+                                     fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    if (tab == "match") {
+                        Text("ONE PHONE", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        GoldButton("PASS & PLAY", onClick = gate(onPassPlay))
+                        Spacer(Modifier.height(14.dp))
+                        Text("TWO PHONES, NEARBY", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        GoldButton("HOST A MATCH", onClick = gateTrading(onHost))
+                        GoldButton("JOIN A MATCH", onClick = gateTrading(onJoin))
+                        Spacer(Modifier.height(14.dp))
+                        Text("ANY DISTANCE, ONLINE", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        GoldButton("HOST A ROOM", onClick = gateTrading(onHostOnline))
+                        GoldButton("JOIN WITH A CODE", onClick = gateTrading(onJoinOnline))
+                    } else {
+                        Text("swap cards with a friend, no match needed", color = Color(190, 175, 145), fontSize = 11.sp)
+                        Spacer(Modifier.height(8.dp))
+                        GoldButton("HOST A TRADE", onClick = gateTrading(onTradeHost))
+                        GoldButton("JOIN A TRADE", onClick = gateTrading(onTradeJoin))
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))
