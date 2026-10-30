@@ -46,7 +46,6 @@ sealed interface SessionEvent {
     }
     data class GameOver(val outcome: Outcome) : SessionEvent
     data class TradeResolved(val transfers: List<CardTransfer>) : SessionEvent
-    data class FriendlyOffered(val ids: List<String>) : SessionEvent
     data class Forfeit(val winner: Owner, val reason: String) : SessionEvent
     data class Declined(val detail: String) : SessionEvent
     data class Disconnected(val detail: String) : SessionEvent
@@ -95,10 +94,6 @@ class P2pSession(
     private var referee: DeckReferee? = null
     private var broughtBlue: List<CardDef> = emptyList()
     private var broughtRed: List<CardDef> = emptyList()
-    private var friendMine = emptySet<String>()
-    private var friendTheirs = emptySet<String>()
-    private var friendIAccepted = false
-    private var friendPeerAccepted = false
     private var pendingPick: PendingPick? = null
     @Volatile private var concluded = false
 
@@ -177,48 +172,11 @@ class P2pSession(
         is Msg.Move -> onPeerMove(m)
         is Msg.TradePick -> onTradePick(m)
         is Msg.TradeCollection -> fault("protocol", "trade message in a match session")
-        is Msg.FriendlyOffer -> onFriendlyOffer(m)
-        is Msg.FriendlyAccept -> {
-            friendPeerAccepted = true
-            if (friendIAccepted) resolveFriendlyTrade()
-        }
+        is Msg.FriendlyOffer -> fault("protocol", "trade message in a match session")
+        is Msg.FriendlyAccept -> fault("protocol", "trade message in a match session")
         is Msg.Resign -> terminate(SessionEvent.Forfeit(myColor, "Opponent resigned"))
         is Msg.Error -> terminate(SessionEvent.ProtocolError(m.code, m.detail))
     } }
-
-    val myBroughtIds: List<String>
-        get() = (if (myColor == Owner.blue) broughtBlue else broughtRed).map { it.id }
-
-    fun proposeFriendlyTrade(ids: List<String>) = scope.launch { mutex.withLock {
-        if (state == null || !state!!.isOver) return@launch
-        if (ids.any { it !in myBroughtIds }) return@launch
-        friendMine = ids.toSet()
-        friendIAccepted = false; friendPeerAccepted = false
-        send(Msg.FriendlyOffer(ids))
-    } }
-
-    fun acceptFriendlyTrade() = scope.launch { mutex.withLock {
-        if (friendMine.isEmpty() || friendTheirs.isEmpty()) return@launch
-        friendIAccepted = true
-        send(Msg.FriendlyAccept)
-        if (friendPeerAccepted) resolveFriendlyTrade()
-    } }
-
-    private suspend fun onFriendlyOffer(m: Msg.FriendlyOffer) {
-        val theirs = (if (myColor == Owner.blue) broughtRed else broughtBlue).map { it.id }.toSet()
-        if (m.ids.any { it !in theirs }) { fault("deck", "friendly offer outside brought hand"); return }
-        friendTheirs = m.ids.toSet()
-        friendIAccepted = false; friendPeerAccepted = false
-        events.send(SessionEvent.FriendlyOffered(m.ids))
-    }
-
-    private suspend fun resolveFriendlyTrade() {
-        val transfers = friendMine.map { CardTransfer(catalog.getValue(it), myColor, myColor.other) } +
-            friendTheirs.map { CardTransfer(catalog.getValue(it), myColor.other, myColor) }
-        friendMine = emptySet(); friendTheirs = emptySet()
-        friendIAccepted = false; friendPeerAccepted = false
-        events.send(SessionEvent.TradeResolved(transfers))
-    }
 
     private fun validatePeerDeck(m: Msg.Deck) {
         val s = settings!!

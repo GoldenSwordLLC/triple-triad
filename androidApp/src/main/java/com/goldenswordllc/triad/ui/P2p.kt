@@ -511,8 +511,6 @@ class P2pMatchViewModel(
     var lastFlips by mutableStateOf<List<triad.core.Flip>>(emptyList()); private set
     var result by mutableStateOf<ResultState?>(null); private set
     var ended by mutableStateOf<String?>(null); private set
-    val myBroughtIds: List<String> = initialState.hand(initialColor).map { it.id }
-    var friendOfferTheirs by mutableStateOf<List<String>>(emptyList()); private set
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -523,7 +521,6 @@ class P2pMatchViewModel(
                     is SessionEvent.MatchStarted -> { state = e.state; myColor = e.myColor }
                     is SessionEvent.MoveApplied -> { state = e.state; lastFlips = e.flips }
                     is SessionEvent.GameOver -> result = ResultState(outcome = e.outcome)
-                    is SessionEvent.FriendlyOffered -> friendOfferTheirs = e.ids
                     is SessionEvent.TradeResolved -> {
                         result = result?.copy(transfers = e.transfers, applied = true)
                         onTransfers(e.transfers, myColor)
@@ -545,8 +542,6 @@ class P2pMatchViewModel(
 
     fun play(cardIndex: Int, cell: Int) = session.play(cardIndex, cell)
     fun confirmPick(ids: List<String>) = session.tradePick(ids)
-    fun proposeFriendlyTrade(ids: List<String>) = session.proposeFriendlyTrade(ids)
-    fun acceptFriendlyTrade() = session.acceptFriendlyTrade()
     fun resign() = session.resign()
     fun done() = session.teardown()
     fun dispose() = scope.cancel()
@@ -624,8 +619,6 @@ fun P2pMatchScreen(
         }
 
         var viewBoard by remember { mutableStateOf(false) }
-        var tradeOpen by remember { mutableStateOf(false) }
-        LaunchedEffect(vm.result?.applied) { if (vm.result?.applied == true) tradeOpen = false }
 
         LaunchedEffect(vm.result) { viewBoard = false }
         when {
@@ -636,11 +629,7 @@ fun P2pMatchScreen(
                 myColor = vm.myColor,
                 onConfirmPick = vm::confirmPick,
                 onDone = { vm.done(); onExit() },
-                onProposeTrade = if (vm.result?.applied == false) { { tradeOpen = true } } else null,
             )
-        }
-        if (tradeOpen && vm.result != null && !viewBoard && vm.ended == null) {
-            FriendlyTradePanel(vm = vm, catalog = catalog, onClose = { tradeOpen = false })
         }
         if (vm.result != null && viewBoard) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
@@ -662,70 +651,6 @@ fun P2pMatchScreen(
                 onStay = { confirmExit = false },
                 warning = "Leaving now counts as a resignation, your opponent will be awarded the win.",
             )
-        }
-    }
-}
-
-@Composable
-private fun FriendlyTradePanel(vm: P2pMatchViewModel, catalog: Map<String, CardDef>, onClose: () -> Unit) {
-    val offered = remember { mutableStateListOf<String>() }
-    fun toggle(id: String) {
-        if (id in offered) offered.remove(id) else offered.add(id)
-    }
-    Box(Modifier.fillMaxSize().background(Color(0, 0, 0, 170))
-            .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                       indication = null) {},
-        contentAlignment = Alignment.Center) {
-        Column(Modifier.fillMaxWidth().padding(20.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(30, 22, 8))
-                .border(2.dp, Color(0xFFD4AF37), RoundedCornerShape(16.dp))
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("FRIENDLY TRADE", color = P2pCream, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text("swap cards you both brought, no winner needed", color = Color(190, 175, 145), fontSize = 10.sp,
-                 modifier = Modifier.padding(bottom = 10.dp))
-            Text("YOUR OFFER, tap to select", color = Color(230, 205, 160), fontSize = 11.sp,
-                 fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                vm.myBroughtIds.forEach { id ->
-                    val def = catalog[id] ?: return@forEach
-                    val sel = id in offered
-                    CardThumb(def, conflict = false, selected = sel, owner = vm.myColor,
-                              modifier = Modifier.weight(1f).aspectRatio(CardSheets.ASPECT)
-                                  .clickable { toggle(id) })
-                }
-            }
-            val peerIds = vm.friendOfferTheirs
-            if (peerIds.isEmpty()) {
-                Text("waiting for their offer…", color = Color(190, 175, 145), fontSize = 12.sp,
-                     modifier = Modifier.padding(vertical = 8.dp))
-            } else {
-                Text("THEY OFFER", color = Color(230, 205, 160), fontSize = 11.sp,
-                     fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    peerIds.forEach { id ->
-                        val def = catalog[id] ?: return@forEach
-                        CardThumb(def, conflict = false, owner = vm.myColor.other,
-                                  modifier = Modifier.weight(1f).aspectRatio(CardSheets.ASPECT))
-                    }
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GoldAction("CLOSE", filled = false, modifier = Modifier.weight(1f)) { onClose() }
-                GoldAction("SEND OFFER", filled = true, enabled = offered.isNotEmpty(),
-                           modifier = Modifier.weight(1f)) {
-                    vm.proposeFriendlyTrade(offered.toList())
-                }
-                if (peerIds.isNotEmpty() && offered.isNotEmpty()) {
-                    GoldAction("ACCEPT ▶", filled = true, modifier = Modifier.weight(1f)) {
-                        vm.acceptFriendlyTrade()
-                    }
-                }
-            }
         }
     }
 }
