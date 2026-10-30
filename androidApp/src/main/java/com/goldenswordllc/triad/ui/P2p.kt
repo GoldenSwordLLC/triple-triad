@@ -461,8 +461,8 @@ fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Uni
                             val sel = tab == key
                             Box(Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (sel) Gold else Color(30, 22, 8).copy(alpha = 0.85f))
-                                .border(if (sel) 2.dp else 1.dp, Gold, RoundedCornerShape(10.dp))
+                                .background(if (sel) Color(0xFFD4AF37) else Color(30, 22, 8).copy(alpha = 0.85f))
+                                .border(if (sel) 2.dp else 1.dp, Color(0xFFD4AF37), RoundedCornerShape(10.dp))
                                 .clickable { tab = key }
                                 .padding(horizontal = 16.dp, vertical = 8.dp)) {
                                 Text(label, color = if (sel) Color(55, 38, 10) else Color(255, 240, 200),
