@@ -95,7 +95,17 @@ private fun makeErrMsg(reply: String) = when {
 }
 
 private suspend fun dialRelay(host: String, port: Int): Socket = withContext(Dispatchers.IO) {
-    Socket().apply { connect(InetSocketAddress(host, port), 8_000) }
+    // try EVERY resolved address: a domain may carry both A and AAAA records, and any
+    // given network (cellular loves IPv6) may reach only one of them — a single-address
+    // dial gets hard REFUSED when the server side lacks that family
+    val addrs = java.net.InetAddress.getAllByName(host)
+    var last: Exception? = null
+    for (a in addrs) {
+        try {
+            return@withContext Socket().apply { connect(InetSocketAddress(a, port), 3_000) }
+        } catch (e: Exception) { last = e }
+    }
+    throw last ?: java.io.IOException("relay unreachable")
 }
 
 private suspend fun readControlLine(socket: Socket): String = withContext(Dispatchers.IO) {

@@ -29,7 +29,7 @@ class RealRelayTest {
             while (port < 0 && System.currentTimeMillis() < deadline) {
                 if (proc.inputStream.available() == 0) { Thread.sleep(50); continue }
                 val line = proc.inputStream.bufferedReader().readLine() ?: break
-                val m = Regex("listening on [^:]+:(\\d+)").find(line)
+                val m = Regex("listening on [^ ]+:(\\d+)").find(line)
                 if (m != null) port = m.groupValues[1].toInt()
             }
             assertTrue(port > 0, "relay never announced its port")
