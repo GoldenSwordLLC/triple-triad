@@ -11,6 +11,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -48,6 +49,7 @@ class OnlineHostViewModel(
     val session = MutableStateFlow<P2pSession?>(null)
     val error = MutableStateFlow<String?>(null)
     private var wire: triad.net.Wire? = null
+    private var eventsJob: kotlinx.coroutines.Job? = null
 
     fun start(settings: MatchSettings) {
         if (session.value != null || code.value != null) return
@@ -60,14 +62,31 @@ class OnlineHostViewModel(
                     me = P2pSession.PlayerLocal(myDeckIds, emptyList(), ColorPref.any),
                     hostSettings = settings)
                 s.start()
-                session.value = s
+                // keep the CODE on screen until a challenger actually arrives; this collector
+                // hands the event stream to PreMatchFlow the moment one does (channels are
+                // exclusive-consumer, so it cancels itself first)
+                eventsJob = scope.launch {
+                    s.eventsFlow.collect { e ->
+                        when (e) {
+                            is triad.net.SessionEvent.Connected -> {
+                                session.value = s
+                                eventsJob?.cancel()
+                            }
+                            is triad.net.SessionEvent.Disconnected ->
+                                if (session.value == null) error.value = "Connection lost while waiting, host again."
+                            is triad.net.SessionEvent.ProtocolError ->
+                                if (session.value == null) error.value = "${e.code}: ${e.detail}"
+                            else -> {}
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 error.value = e.message ?: "Could not reach the relay"
             }
         }
     }
 
-    fun shutdown() { runCatching { wire?.close() }; scope.cancel() }
+    fun shutdown() { eventsJob?.cancel(); runCatching { wire?.close() }; scope.cancel() }
 }
 
 @Composable
@@ -99,6 +118,12 @@ fun OnlineHostScreen(
                         onExit = onExit)
                 }
                 code != null -> {
+                    val ctx = LocalContext.current
+                    DisposableEffect(Unit) {
+                        val window = (ctx as? android.app.Activity)?.window
+                        window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        onDispose { window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+                    }
                     Box(Modifier.weight(1f).fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp)).background(Color(22, 15, 6).copy(alpha = 0.88f))) {
                         Column(Modifier.fillMaxSize().padding(16.dp),

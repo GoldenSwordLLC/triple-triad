@@ -2,7 +2,6 @@ package triad.net
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import java.io.BufferedInputStream
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -100,7 +99,9 @@ private suspend fun dialRelay(host: String, port: Int): Socket = withContext(Dis
 }
 
 private suspend fun readControlLine(socket: Socket): String = withContext(Dispatchers.IO) {
-    val r = BufferedInputStream(socket.getInputStream())
+    // one byte at a time straight off the socket: a buffering wrapper could swallow
+    // game-protocol bytes that arrive hot on the heels of the control line
+    val r = socket.getInputStream()
     val sb = StringBuilder()
     while (true) {
         val c = r.read()
