@@ -36,6 +36,10 @@ import com.goldenswordllc.triad.ui.JoinFlowScreen
 import com.goldenswordllc.triad.ui.CreditsScreen
 import com.goldenswordllc.triad.ui.PassRedDeckScreen
 import com.goldenswordllc.triad.ui.OnlineHostScreen
+import com.goldenswordllc.triad.ui.TradeHostScreen
+import com.goldenswordllc.triad.ui.TradeJoinScreen
+import com.goldenswordllc.triad.ui.TradeRoomScreen
+import triad.net.TradeSession
 import com.goldenswordllc.triad.ui.RELAY_HOST
 import com.goldenswordllc.triad.ui.RELAY_PORT
 import com.goldenswordllc.triad.ui.OnlineJoinScreen
@@ -104,6 +108,9 @@ private sealed interface Screen {
     data class PassRedPick(val blueDeck: List<CardDef>) : Screen
     data object Collection : Screen
     data object PackClaim : Screen
+    data object TradeHost : Screen
+    data object TradeJoin : Screen
+    data class TradeRoom(val session: TradeSession) : Screen
     data object OnlineHost : Screen
     data object OnlineJoin : Screen
     data object Host : Screen
@@ -207,6 +214,34 @@ class MainActivity : ComponentActivity() {
                             onDecks = { screen = Screen.Decks },
                             onMultiplayer = { screen = Screen.Multiplayer },
                         )
+                    Screen.TradeHost ->
+                        TradeHostScreen(
+                            myCollection = save.value.collection,
+                            onTradeReady = { session -> screen = Screen.TradeRoom(session) },
+                            onExit = { screen = Screen.Multiplayer },
+                        )
+                    Screen.TradeJoin ->
+                        TradeJoinScreen(
+                            myCollection = save.value.collection,
+                            onTradeReady = { session -> screen = Screen.TradeRoom(session) },
+                            onExit = { screen = Screen.Multiplayer },
+                        )
+                    is Screen.TradeRoom -> {
+                        val collectionSnapshot = remember { save.value.collection }
+                        TradeRoomScreen(
+                            session = s.session,
+                            catalog = catalog,
+                            myCollection = collectionSnapshot,
+                            onDone = { gained, lost ->
+                                var c = save.value.collection.toMutableMap()
+                                gained.forEach { c[it.id] = (c[it.id] ?: 0) + 1 }
+                                lost.forEach { c[it.id] = ((c[it.id] ?: 1) - 1).coerceAtLeast(0) }
+                                save.value = save.value.copy(collection = c)
+                                persist(this@MainActivity, save.value)
+                            },
+                            onExit = { screen = Screen.Multiplayer },
+                        )
+                    }
                     Screen.OnlineHost -> {
                         OnlineHostScreen(
                             relayHost = RELAY_HOST, relayPort = RELAY_PORT,
@@ -240,6 +275,8 @@ class MainActivity : ComponentActivity() {
                             onJoin = { gatePack { screen = Screen.Join } },
                             onHostOnline = { gatePack { screen = Screen.OnlineHost } },
                             onJoinOnline = { gatePack { screen = Screen.OnlineJoin } },
+                            onTradeHost = { gatePack { screen = Screen.TradeHost } },
+                            onTradeJoin = { gatePack { screen = Screen.TradeJoin } },
                             onBack = { screen = Screen.Menu },
                         )
                     Screen.Decks ->
@@ -379,6 +416,10 @@ class MainActivity : ComponentActivity() {
                             catalog = catalog,
                             initialState = s.state,
                             initialColor = s.myColor,
+                            onTransfers = { transfers, myColor ->
+                                save.value = save.value.applyTransfers(transfers, myColor)
+                                persist(this@MainActivity, save.value)
+                            },
                             onExit = { screen = Screen.Menu },
                         )
                 }

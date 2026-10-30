@@ -38,7 +38,8 @@ fun qrBitmap(content: String, size: Int): Bitmap {
     }
 }
 
-data class QrInvite(val transport: String, val ip: String?, val port: Int?, val name: String, val token: String)
+data class QrInvite(val transport: String, val ip: String?, val port: Int?, val name: String,
+                    val token: String, val mode: String = "match")
 
 fun parseInvite(raw: String): QrInvite? = runCatching {
     val uri = Uri.parse(raw)
@@ -48,7 +49,8 @@ fun parseInvite(raw: String): QrInvite? = runCatching {
         ip = uri.getQueryParameter("ip"),
         port = uri.getQueryParameter("port")?.toInt(),
         name = uri.getQueryParameter("name") ?: "?",
-        token = uri.getQueryParameter("t") ?: "")
+        token = uri.getQueryParameter("t") ?: "",
+        mode = uri.getQueryParameter("mode") ?: "match")
 }.getOrNull()
 
 class HostViewModel(private val app: Application, private val catalog: Map<String, CardDef>) : AndroidViewModel(app) {

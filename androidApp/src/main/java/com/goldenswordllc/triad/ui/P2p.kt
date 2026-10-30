@@ -379,6 +379,8 @@ fun JoinFlowScreen(
                                 val inv = parseScannedInvite(raw)
                                 if (inv == null && raw != null) {
                                     errorMsg = "That QR isn't a Triad invite, try again."
+                                } else if (inv?.mode == "trade") {
+                                    errorMsg = "That's a TRADE invite, use TRADE CARDS."
                                 } else if (inv != null) {
 
                                     invite = inv
@@ -405,6 +407,7 @@ fun JoinFlowScreen(
 fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Unit,
                       onPassPlay: () -> Unit, onHost: () -> Unit, onJoin: () -> Unit,
                       onHostOnline: () -> Unit = {}, onJoinOnline: () -> Unit = {},
+                      onTradeHost: () -> Unit = {}, onTradeJoin: () -> Unit = {},
                       onBack: () -> Unit) {
     var askForDeck by remember { mutableStateOf<(() -> Unit)?>(null) }
     var tooFewCards by remember { mutableStateOf(false) }
@@ -461,6 +464,10 @@ fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Uni
                     Text("ANY DISTANCE — ONLINE", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     GoldButton("HOST A ROOM", sub = "get a room code", onClick = gateTrading(onHostOnline))
                     GoldButton("JOIN WITH A CODE", sub = "enter your friend's code", onClick = gateTrading(onJoinOnline))
+                    Spacer(Modifier.height(18.dp))
+                    Text("TRADE CARDS, no match needed", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    GoldButton("HOST A TRADE", sub = "QR for nearby, code for online", onClick = gateTrading(onTradeHost))
+                    GoldButton("JOIN A TRADE", sub = "scan or enter a code", onClick = gateTrading(onTradeJoin))
                 }
             }
             Spacer(Modifier.height(12.dp))

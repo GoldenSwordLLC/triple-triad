@@ -176,6 +176,7 @@ class P2pSession(
         is Msg.DeckAck -> { peerAcked = true; maybeBegin() }
         is Msg.Move -> onPeerMove(m)
         is Msg.TradePick -> onTradePick(m)
+        is Msg.TradeCollection -> fault("protocol", "trade message in a match session")
         is Msg.FriendlyOffer -> onFriendlyOffer(m)
         is Msg.FriendlyAccept -> {
             friendPeerAccepted = true
