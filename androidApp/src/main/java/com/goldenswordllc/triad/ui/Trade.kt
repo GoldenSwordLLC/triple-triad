@@ -54,9 +54,11 @@ class TradeHostViewModel(
     fun start() {
         if (qrPayload.value != null || relayCode.value != null) return
         val token = randomHex(4)
-        scope.launch {
-            // LAN path: QR with a trade-mode invite
-            if (lanIpAvailable != null) {
+        // BOTH radios concurrently: the LAN branch blocks in accept(), so a sequential
+        // relay call would never run while the QR waits — the code must be requested
+        // in parallel; `claimed` arbitrates whichever peer lands first
+        if (lanIpAvailable != null) {
+            scope.launch {
                 try {
                     val s = ServerSocket(0)
                     server = s
@@ -68,7 +70,8 @@ class TradeHostViewModel(
                     }
                 } catch (_: Exception) {}
             }
-            // relay path: room code, either radio wins
+        }
+        scope.launch {
             try {
                 val (w, code) = hostRelay(RELAY_HOST, RELAY_PORT, scope)
                 if (claimed.compareAndSet(false, true)) {
