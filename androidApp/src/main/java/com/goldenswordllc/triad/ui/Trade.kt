@@ -49,6 +49,7 @@ class TradeHostViewModel(
     val error = mutableStateOf<String?>(null)
     private var wire: Wire? = null
     private var server: ServerSocket? = null
+    private var eventsJob: kotlinx.coroutines.Job? = null
     private val claimed = AtomicBoolean(false)
 
     fun start() {
@@ -87,12 +88,26 @@ class TradeHostViewModel(
     private fun attach(w: Wire, token: String) {
         val s = TradeSession(w, isHost = true, myName = "Host", token = token,
             catalog = catalog, myCollection = myCollection)
-        // catalog fills on Ready via the UI layer (cards render from the app catalog)
         s.start()
-        session.value = s
+        // parking at the relay is NOT a peer: hold the session until the joiner's
+        // collection declaration arrives (Ready), then hand the event stream to the
+        // trade room (channels are exclusive-consumer, so cancel ourselves first)
+        eventsJob = scope.launch {
+            s.eventsFlow.collect { e ->
+                when (e) {
+                    is TradeEvent.Ready -> {
+                        session.value = s
+                        eventsJob?.cancel()
+                    }
+                    is TradeEvent.Fault -> if (session.value == null) error.value = "${e.code}: ${e.detail}"
+                    TradeEvent.PeerGone -> if (session.value == null) error.value = "Connection lost while waiting, host again."
+                    else -> {}
+                }
+            }
+        }
     }
 
-    fun shutdown() { runCatching { wire?.close() }; runCatching { server?.close() }; scope.cancel() }
+    fun shutdown() { eventsJob?.cancel(); runCatching { wire?.close() }; runCatching { server?.close() }; scope.cancel() }
 }
 
 @Composable
