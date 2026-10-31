@@ -19,8 +19,14 @@ class RealRelayTest {
         val script = sequenceOf(File("server/relay.py"), File("../server/relay.py"))
             .firstOrNull { it.exists() } ?: fail("relay.py not found")
         val db = File.createTempFile("relay", ".db")
+        val tc = File.createTempFile("tcert", ".pem"); val tk = File.createTempFile("tkey", ".pem")
+        ProcessBuilder("openssl", "req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", tk.absolutePath, "-out", tc.absolutePath,
+            "-days", "1", "-nodes", "-subj", "/CN=localhost").start().waitFor()
+        triad.net.TEST_UNTRUSTED_TLS = true
         val proc = ProcessBuilder(
-            "python3", script.absolutePath, "--port", "0", "--park", "60", "--db", db.absolutePath
+            "python3", script.absolutePath, "--port", "0", "--park", "60", "--db", db.absolutePath,
+            "--tls-cert", tc.absolutePath, "--tls-key", tk.absolutePath
         ).redirectErrorStream(true).start()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
@@ -29,7 +35,7 @@ class RealRelayTest {
             while (port < 0 && System.currentTimeMillis() < deadline) {
                 if (proc.inputStream.available() == 0) { Thread.sleep(50); continue }
                 val line = proc.inputStream.bufferedReader().readLine() ?: break
-                val m = Regex("listening on [^ ]+:(\\d+)").find(line)
+                val m = Regex("TLS on [^ ]+:(\\d+)").find(line)
                 if (m != null) port = m.groupValues[1].toInt()
             }
             assertTrue(port > 0, "relay never announced its port")

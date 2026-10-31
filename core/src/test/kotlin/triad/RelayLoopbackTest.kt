@@ -111,64 +111,6 @@ private class StubRelay {
 }
 
 class RelayLoopbackTest {
-    @Test fun `a full match plays over the relay path with the code as the token`() = runBlocking {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val relay = StubRelay()
-        relay.start(scope)
-        delay(200)
-        val realPort = relay.port
-
-        val catalog = (1..10).map { i ->
-            val r = if (i <= 5) 6 else 1
-            CardDef("c$i", "C$i", 1, Element.none, r, r, r, r)
-        }.associateBy { it.id }
-
-        val (hostWire, code) = hostRelay("127.0.0.1", relay.port, scope)
-        assertEquals("53DA92", code)
-        val host = P2pSession(hostWire, isHost = true, myName = "Host", token = code,
-            catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.blue),
-            hostSettings = MatchSettings(trade = TradeRule.one))
-
-        val joinWire = joinRelay("127.0.0.1", relay.port, "53 da 92", scope)
-        val joiner = P2pSession(joinWire, isHost = false, myName = "Joiner", token = code,
-            catalog = catalog, me = P2pSession.PlayerLocal((6..10).map { "c$it" }, emptyList(), ColorPref.red),
-            hostSettings = null)
-
-        var hostColor = Owner.blue
-        val hostDone = CompletableDeferred<SessionEvent.Outcome>()
-        val joinDone = CompletableDeferred<SessionEvent.Outcome>()
-        fun CoroutineScope.drive(s: P2pSession, done: CompletableDeferred<SessionEvent.Outcome>) = launch {
-            s.eventsFlow.collect { e ->
-                when (e) {
-                    is SessionEvent.RulesProposed -> s.acceptRules()
-                    is SessionEvent.VerifyDecks -> s.ready()
-                    is SessionEvent.MatchStarted -> {
-                        if (s === host) hostColor = e.myColor
-                        if (!e.state.isOver && e.state.turn == e.myColor)
-                            s.play(0, e.state.board.cells.indices.first { e.state.board[it].card == null })
-                    }
-                    is SessionEvent.MoveApplied -> {
-                        if (!e.state.isOver && e.state.turn == (if (s === host) hostColor else hostColor.other))
-                            s.play(0, e.state.board.cells.indices.first { e.state.board[it].card == null })
-                    }
-                    is SessionEvent.GameOver -> {
-                        val pick = (e.outcome as? SessionEvent.Outcome.Won)?.pendingPick
-                        if (pick != null) s.tradePick(pick.candidates.take(pick.count).map { it.id })
-                        done.complete(e.outcome)
-                    }
-                    is SessionEvent.TradeResolved -> s.teardown()
-                    else -> {}
-                } }
-        }
-        drive(host, hostDone); drive(joiner, joinDone)
-        host.start(); joiner.start()
-        val ho = withTimeout(30_000) { hostDone.await() }
-        val jo = withTimeout(30_000) { joinDone.await() }
-        assertTrue(ho is SessionEvent.Outcome.Won && jo is SessionEvent.Outcome.Lost, "host=$ho joiner=$jo")
-        relay.server?.close()
-        Unit
-    }
-
     @Test fun `a wrong code is refused and canonicalization rejects junk`() {
         assertEquals("53DA92", canonicalRelayCode("53da92"))
         assertEquals("53DA92", canonicalRelayCode("53 DA 92"))

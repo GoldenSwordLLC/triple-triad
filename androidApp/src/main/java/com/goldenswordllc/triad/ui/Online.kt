@@ -36,7 +36,7 @@ import triad.core.maxLoss
 import triad.net.P2pSession
 
 const val RELAY_HOST = "triad.goldenswordllc.com"
-const val RELAY_PORT = 44000
+const val RELAY_PORT = 443
 
 class OnlineHostViewModel(
     private val relayHost: String,

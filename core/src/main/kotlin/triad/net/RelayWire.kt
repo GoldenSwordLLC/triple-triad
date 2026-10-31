@@ -94,16 +94,14 @@ private fun makeErrMsg(reply: String) = when {
     else -> "Relay: $reply"
 }
 
-private const val RELAY_TLS_PORT = 443
-
 private suspend fun dialRelay(host: String, port: Int): Socket = withContext(Dispatchers.IO) {
-    // TLS first (port 443, hostname-verified against system CAs); fall back to the
-    // plain listener for deployments without certs. Both paths try EVERY resolved
-    // address family (a domain may carry A and AAAA; cellular prefers v6).
-    tryConnect(host, RELAY_TLS_PORT, tls = true)
-        ?: tryConnect(host, port, tls = false)
+    // TLS only, hostname-verified against system CAs; tries every resolved address
+    // family (a domain may carry A and AAAA; cellular prefers v6)
+    tryConnect(host, port, tls = true)
         ?: throw java.io.IOException("relay unreachable")
 }
+
+internal var TEST_UNTRUSTED_TLS = false   // tests run against self-signed certs only
 
 private fun tryConnect(host: String, port: Int, tls: Boolean): Socket? {
     val addrs = java.net.InetAddress.getAllByName(host)
@@ -111,14 +109,26 @@ private fun tryConnect(host: String, port: Int, tls: Boolean): Socket? {
         try {
             val raw = Socket().apply { connect(InetSocketAddress(a, port), 3_000) }
             if (!tls) return raw
-            val factory = javax.net.ssl.SSLSocketFactory.getDefault() as javax.net.ssl.SSLSocketFactory
+            val factory: javax.net.ssl.SSLSocketFactory = if (TEST_UNTRUSTED_TLS) {
+                val ctx = javax.net.ssl.SSLContext.getInstance("TLS")
+                ctx.init(null, arrayOf(object : javax.net.ssl.X509TrustManager {
+                    override fun checkClientTrusted(c: Array<java.security.cert.X509Certificate>, a: String) {}
+                    override fun checkServerTrusted(c: Array<java.security.cert.X509Certificate>, a: String) {}
+                    override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = arrayOf()
+                }), java.security.SecureRandom())
+                ctx.socketFactory
+            } else {
+                javax.net.ssl.SSLSocketFactory.getDefault() as javax.net.ssl.SSLSocketFactory
+            }
             val ssl = factory.createSocket(raw, host, port, true) as javax.net.ssl.SSLSocket
-            ssl.sslParameters = ssl.sslParameters.apply {
-                endpointIdentificationAlgorithm = "HTTPS"   // verify cert against hostname
+            if (!TEST_UNTRUSTED_TLS) {
+                ssl.sslParameters = ssl.sslParameters.apply {
+                    endpointIdentificationAlgorithm = "HTTPS"   // verify cert against hostname
+                }
             }
             ssl.startHandshake()
             return ssl
-        } catch (_: Exception) { /* next address / next mode */ }
+        } catch (_: Exception) { /* next address */ }
     }
     return null
 }
