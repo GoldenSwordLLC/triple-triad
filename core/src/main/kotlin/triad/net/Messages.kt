@@ -22,6 +22,7 @@ val wireJson = Json { ignoreUnknownKeys = true }
     @Serializable @SerialName("tColl")   data class TradeCollection(val counts: Map<String, Int>) : Msg()
     @Serializable @SerialName("fOffer")   data class FriendlyOffer(val ids: List<String>) : Msg()
     @Serializable @SerialName("fAccept")  data object FriendlyAccept : Msg()
+    @Serializable @SerialName("rematch")  data object Rematch : Msg()
     @Serializable @SerialName("resign")    data object Resign : Msg()
     @Serializable @SerialName("error")     data class Error(val code: String, val detail: String = "") : Msg()
 }

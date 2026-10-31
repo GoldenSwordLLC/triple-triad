@@ -520,6 +520,7 @@ class P2pMatchViewModel(
                 when (e) {
                     is SessionEvent.MatchStarted -> { state = e.state; myColor = e.myColor }
                     is SessionEvent.MoveApplied -> { state = e.state; lastFlips = e.flips }
+                    is SessionEvent.RematchStarted -> { state = e.state; result = null; lastFlips = emptyList() }
                     is SessionEvent.GameOver -> result = ResultState(outcome = e.outcome)
                     is SessionEvent.TradeResolved -> {
                         result = result?.copy(transfers = e.transfers, applied = true)
@@ -542,6 +543,7 @@ class P2pMatchViewModel(
 
     fun play(cardIndex: Int, cell: Int) = session.play(cardIndex, cell)
     fun confirmPick(ids: List<String>) = session.tradePick(ids)
+    fun rematch() = session.rematch()
     fun resign() = session.resign()
     fun done() = session.teardown()
     fun dispose() = scope.cancel()
@@ -629,6 +631,7 @@ fun P2pMatchScreen(
                 myColor = vm.myColor,
                 onConfirmPick = vm::confirmPick,
                 onDone = { vm.done(); onExit() },
+                onRematch = vm::rematch,
             )
         }
         if (vm.result != null && viewBoard) {

@@ -25,9 +25,9 @@ class TradeSessionTest {
         val collectors = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val sockets = pair(scope)
         val a = TradeSession(TcpWire(sockets.first, scope), isHost = true, myName = "A", token = "TK",
-            catalog = catalog, myCollection = mapOf("c1" to 3, "c2" to 1))
+            catalog = catalog, myCollection = mapOf("c1" to 3, "c2" to 1, "c3" to 2, "c4" to 2, "c5" to 1, "c6" to 1))
         val b = TradeSession(TcpWire(sockets.second, scope), isHost = false, myName = "B", token = "TK",
-            catalog = catalog, myCollection = mapOf("c5" to 2, "c9" to 1))
+            catalog = catalog, myCollection = mapOf("c5" to 2, "c9" to 1, "c6" to 2, "c7" to 2, "c8" to 1, "c10" to 1))
         try {
             runBlocking {
                 val aReady = CompletableDeferred<Map<String, Int>>()
@@ -53,7 +53,7 @@ class TradeSessionTest {
                 a.start(); b.start()
 
                 val bCollection = withTimeout(10_000) { aReady.await() }
-                assertEquals(mapOf("c5" to 2, "c9" to 1), bCollection)
+                assertEquals(2, bCollection["c5"]); assertEquals(1, bCollection["c9"])
 
                 a.propose(listOf("c1", "c1", "c2"))
                 withTimeout(10_000) { bPeerOffer.await() }
@@ -82,9 +82,9 @@ class TradeSessionTest {
         val collectors = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val sockets = pair(scope)
         val a = TradeSession(TcpWire(sockets.first, scope), isHost = true, myName = "A", token = "TK",
-            catalog = catalog, myCollection = mapOf("c1" to 1))
+            catalog = catalog, myCollection = mapOf("c1" to 1, "c2" to 1, "c3" to 2, "c4" to 2))
         val b = TradeSession(TcpWire(sockets.second, scope), isHost = false, myName = "B", token = "TK",
-            catalog = catalog, myCollection = mapOf("c2" to 1))
+            catalog = catalog, myCollection = mapOf("c2" to 1, "c1" to 1, "c3" to 2, "c4" to 2))
         try {
             runBlocking {
                 val bReady = CompletableDeferred<Boolean>()

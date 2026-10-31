@@ -50,6 +50,9 @@ class TradeSession(
     fun propose(ids: List<String>) = scope.launch { mutex.withLock {
         val mine = ids.groupingBy { it }.eachCount()
         if (mine.any { (id, n) -> (myCollection[id] ?: 0) < n }) return@launch
+        // never trade yourself below a playable deck
+        val kept = myCollection.entries.sumOf { (_, n) -> n } - ids.size
+        if (kept < 5) { events.send(TradeEvent.Fault("floor", "that would leave you fewer than 5 cards")); return@launch }
         myOffer = ids
         iAccepted = false; peerAccepted = false
         send(Msg.FriendlyOffer(ids))

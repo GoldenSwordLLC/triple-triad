@@ -383,14 +383,16 @@ data class ResultState(
 fun EndOfMatchHost(
     result: ResultState, peerName: String, myColor: Owner,
     onConfirmPick: (List<String>) -> Unit, onDone: () -> Unit,
+    onRematch: (() -> Unit)? = null,
 ) {
     val pending = (result.outcome as? SessionEvent.Outcome.Won)?.pendingPick
     if (pending != null && !result.applied) TradePickScreen(pending, peerName, myColor.other, onConfirmPick)
-    else MatchResultScreen(result, myColor, onDone)
+    else MatchResultScreen(result, myColor, onDone, onRematch)
 }
 
 @Composable
-fun MatchResultScreen(state: ResultState, myColor: Owner, onDone: () -> Unit) {
+fun MatchResultScreen(state: ResultState, myColor: Owner, onDone: () -> Unit,
+                      onRematch: (() -> Unit)? = null) {
     Box(Modifier.fillMaxSize()
             .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                        indication = null) {}
@@ -415,6 +417,15 @@ fun MatchResultScreen(state: ResultState, myColor: Owner, onDone: () -> Unit) {
             if (gained.isNotEmpty()) TransferRow("Cards gained", gained, owner = myColor.other)
             if (lost.isNotEmpty()) TransferRow("Cards lost", lost, owner = myColor)
             Spacer(Modifier.weight(1f))
+            if (onRematch != null && !state.awaitingPeerPick && !state.applied) {
+                Text("REMATCH", color = Color(255, 240, 200), fontWeight = FontWeight.Bold,
+                     textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
+                         .clip(RoundedCornerShape(12.dp))
+                         .background(Color(120, 85, 20))
+                         .border(2.dp, Color(0xFFD4AF37), RoundedCornerShape(12.dp))
+                         .clickable { onRematch() }.padding(vertical = 12.dp))
+                Spacer(Modifier.height(8.dp))
+            }
             Text("DONE", color = Color(255, 240, 200), fontWeight = FontWeight.Bold,
                  textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                      .clip(RoundedCornerShape(12.dp))

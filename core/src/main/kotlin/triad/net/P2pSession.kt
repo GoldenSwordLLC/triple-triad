@@ -89,6 +89,7 @@ class P2pSession(
     private var peerDeck: Msg.Deck? = null
 
     private var state: GameState? = null
+    private var rematchCount = 0
     private var myColor = Owner.blue
     private var seq = 0
     private var referee: DeckReferee? = null
@@ -171,6 +172,13 @@ class P2pSession(
         is Msg.DeckAck -> { peerAcked = true; maybeBegin() }
         is Msg.Move -> onPeerMove(m)
         is Msg.TradePick -> onTradePick(m)
+        is Msg.Rematch -> mutex.withLock {
+            val s = state
+            if (s != null && s.isOver && !concluded) {
+                concluded = false
+                startRematch()
+            }
+        }
         is Msg.TradeCollection -> fault("protocol", "trade message in a match session")
         is Msg.FriendlyOffer -> fault("protocol", "trade message in a match session")
         is Msg.FriendlyAccept -> fault("protocol", "trade message in a match session")
@@ -236,6 +244,24 @@ class P2pSession(
     fun switchDeck(ids: List<String>) { check(!deckSent); me = me.copy(deckIds = ids) }
     fun ready() = scope.launch { mutex.withLock { send(Msg.DeckAck); myAckSent = true; maybeBegin() } }
     fun decline() = scope.launch { send(Msg.Decline); terminate(SessionEvent.Declined("You declined")) }
+    fun rematch() = scope.launch { mutex.withLock {
+        val s = state ?: return@launch
+        if (!s.isOver || concluded) return@launch
+        concluded = false
+        startRematch()
+        send(Msg.Rematch)
+    } }
+
+    private suspend fun startRematch() {
+        rematchCount++
+        // fresh shared seed derived from the original handshake nonces so both phones
+        // rebuild the identical new game without another commit/reveal round
+        seed = seedFromHex(sha256Hex(seedHex + "#rematch#" + rematchCount))
+        state = buildMatch()
+        referee = DeckReferee(peerDeck!!.ids.groupingBy { it }.eachCount())
+        events.send(SessionEvent.RematchStarted(state!!))
+    }
+
     fun resign() = scope.launch { send(Msg.Resign); terminate(SessionEvent.Forfeit(myColor.other, "You resigned")) }
 
     fun play(handIndex: Int, cell: Int) = scope.launch { mutex.withLock {

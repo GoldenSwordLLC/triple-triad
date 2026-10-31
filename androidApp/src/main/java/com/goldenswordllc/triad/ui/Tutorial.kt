@@ -57,6 +57,14 @@ fun TutorialScreen(onDone: () -> Unit) {
                         "side; on a mismatched cell it gets −1. Cells and elemental cards show the ◆ mark.")
                     section("WINNING",
                         "When the grid is full, whoever owns more board cards wins. 5/4 is a win, never a draw.")
+                    section("PLAYING FRIENDS",
+                        "Under MULTIPLAYER you can host a match on the same Wi-Fi or Bluetooth, or any " +
+                        "distance through the online relay: the host gets a short code like 53DA92, the " +
+                        "friend types it. Pass & play shares one phone.")
+                    section("TRADING CARDS",
+                        "MULTIPLAYER, then TRADE CARDS: host shows a QR for nearby friends and an online " +
+                        "code for anyone. Tap cards from your collection to offer them, both sides accept, " +
+                        "and the swap happens instantly. You can never trade below 5 total cards.")
                     Spacer(Modifier.height(4.dp))
                 }
             }
