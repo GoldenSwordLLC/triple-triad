@@ -149,6 +149,37 @@ private suspend fun readControlLine(socket: Socket): String = withContext(Dispat
 }
 
 
+private val ISRG_X1_PUB: java.security.PublicKey by lazy { parsePub("""
+-----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAregkc/QUN/ObnitXKByH
+vty33ziQjG485legePd1wqL+9Wpu9gBPKNveaIZsRJO2sWP9FBJrvx/S6jGbIX7R
+Mzy6SPXded+zuP8S8SGaS8GKhnFpSmZmbI9+PHC/rSkiBvPkwOaAruJLj7eZfpQD
+n9NHl3yZSCNT6DiuTwpvgy7RSVeMgHS22i/QOI17A3AhG3XyMDz6j67d2mOr6xZP
+wo4RS37PC+j/tXcu9LJ7SuBMEiUMcI0DKaDhUyTsE9nuGb8Qs0qMP4mjYVHerIcH
+lPRjcewu4m9bmIHhiVw0eWx27zuQYnnm26SaLybF0BDhDt7ZEI4W+7f3qPfH5QIH
+mI82CJXn4jeWDTZ1nvsOcrEdm7wD+UkF2IHdBbQq1kHprAF2lQoP2N/VvRIfNS8o
+F2zSmMGoCWR3bkc3us6sWV5onX9y1onFBkEpPlk+3Sb1JMkRp1qjTEAfRqGZtac6
+UW6GO559cqcSBXhZ7T5ReBULA4+N0C8Fsj57ShxLcwUS/Mbq4FATfEOTdLPKdOeO
+HwEI0DDUW3E2tAe6wTAwXEi3gjuYpn1giqKjKYLMur2DBBuigwNBodYF8RvCtvCo
+fIY7RqhIKojcdpp2vx9qpT0Zj+s482TeyCsNCij/99viFULUItAnXeF5/hjncIit
+TubZizrG3SdRbv+8ZPUzQ08CAwEAAQ==
+-----END PUBLIC KEY-----
+""", "RSA") }
+private val ISRG_X2_PUB: java.security.PublicKey by lazy { parsePub("""
+-----BEGIN PUBLIC KEY-----
+MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEzZvVn4CDCuwJSvMWSj5cz3es3mcFDR0H
+ttwW+1qLFNvicWDEukWVEYmO6gbf9yoWHKS5xcUy4APgHoIYOIvXRdgKam7mAHf7
+AlF9ItgKbppbd9/w+kHsOdx1ymgHDB/q
+-----END PUBLIC KEY-----
+""", "EC") }
+
+private fun parsePub(pem: String, algo: String): java.security.PublicKey {
+    val b64 = pem.lines().filter { !it.contains("-----") }.joinToString("")
+    val der = java.util.Base64.getDecoder().decode(b64)
+    return java.security.KeyFactory.getInstance(algo)
+        .generatePublic(java.security.spec.X509EncodedKeySpec(der))
+}
+
 // M1: only Let's Encrypt's root may terminate the relay's chain — a CA installed on the
 // device afterwards cannot MITM the connection. System validation + hostname checks
 // still run via the wrapping default manager.
@@ -162,11 +193,12 @@ private fun pinnedFactory(): javax.net.ssl.SSLSocketFactory {
             defTm.checkClientTrusted(c, a)
         override fun checkServerTrusted(c: Array<java.security.cert.X509Certificate>, a: String) {
             defTm.checkServerTrusted(c, a)
-            val trusted = c.any { cert ->
-                val dn = cert.subjectX500Principal.name.uppercase()
-                dn.contains("O=INTERNET SECURITY RESEARCH GROUP") && dn.contains("CN=ISRG ROOT X1")
-            }
-            if (!trusted) throw java.security.cert.CertificateException("relay chain not issued by ISRG Root X1")
+            // the root itself never travels on the wire; verify the TOPMOST presented
+            // cert's signature against the embedded ISRG root keys instead
+            val top = c.last()
+            val ok = runCatching { top.verify(ISRG_X1_PUB) }.isSuccess ||
+                     runCatching { top.verify(ISRG_X2_PUB) }.isSuccess
+            if (!ok) throw java.security.cert.CertificateException("relay chain not issued by ISRG roots")
         }
         override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = defTm.acceptedIssuers
     }
