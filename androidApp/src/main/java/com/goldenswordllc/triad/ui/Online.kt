@@ -115,7 +115,7 @@ fun OnlineHostScreen(
             when {
                 session != null -> {
                     val s = session!!
-                    PreMatchFlow(s, transportNote = "online relay",
+                    PreMatchFlow(s, myCardCount = cardCount, transportNote = "online relay",
                         onMatchStarted = { st, color -> onMatchStarted(s, st, color) },
                         onExit = onExit)
                 }
@@ -224,6 +224,7 @@ fun OnlineJoinScreen(
     relayPort: Int,
     catalog: Map<String, CardDef>,
     myDeckIds: List<String>,
+    cardCount: Int = Int.MAX_VALUE,
     onMatchStarted: (P2pSession, GameState, Owner) -> Unit,
     onExit: () -> Unit,
 ) {
@@ -238,7 +239,7 @@ fun OnlineJoinScreen(
     when {
         joinSession != null -> {
             val s = joinSession!!
-            PreMatchFlow(s, transportNote = "online relay",
+            PreMatchFlow(s, myCardCount = cardCount, transportNote = "online relay",
                 onMatchStarted = { st, color -> onMatchStarted(s, st, color) },
                 onExit = onExit)
         }

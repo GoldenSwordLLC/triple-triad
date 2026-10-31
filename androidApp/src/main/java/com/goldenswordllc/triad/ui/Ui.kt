@@ -136,7 +136,9 @@ fun PreMatchScreen(vm: PreMatchViewModel, onExit: () -> Unit, myCardCount: Int =
                     "without a deck. Decline unless you're willing to risk it."
                 else null
             }
-            RulesReviewBody(s, vm::accept, vm::decline, riskNote = risk, transportNote = transportNote)
+            val blocked = risk != null
+            RulesReviewBody(s, vm::accept, vm::decline, riskNote = risk,
+                            acceptBlocked = blocked, transportNote = transportNote)
         }
         is PreMatchUi.Verify -> DeckVerifyBody(s.view, s.awaitingPeer, vm::ready, vm::decline, transportNote)
         is PreMatchUi.Ended -> WaitingPane(s.reason, onExit)
@@ -202,7 +204,8 @@ fun WaitingPane(text: String, onExit: () -> Unit) {
 
 @Composable
 fun RulesReviewBody(s: PreMatchUi.RulesReview, onAccept: () -> Unit, onDecline: () -> Unit,
-                    riskNote: String? = null, transportNote: String? = null) {
+                    riskNote: String? = null, acceptBlocked: Boolean = false,
+                    transportNote: String? = null) {
     PrematchPanel {
         Text("${s.peer} proposes:", style = MaterialTheme.typography.titleMedium, color = Color(255, 240, 200))
         RulesSummary(s.settings)
@@ -213,11 +216,16 @@ fun RulesReviewBody(s: PreMatchUi.RulesReview, onAccept: () -> Unit, onDecline: 
         if (riskNote != null) {
             Text(riskNote, color = Color(255, 120, 100), fontWeight = FontWeight.Bold)
         }
+        if (acceptBlocked) {
+            Text("Accept is disabled: these rules could take you below 5 cards. " +
+                 "Ask the host for a lighter rule (None/One), or win packs first.",
+                 color = Color(255, 150, 130), fontSize = 11.sp)
+        }
         TransportNote(transportNote)
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             GoldAction("Decline", filled = false, modifier = Modifier.weight(1f), onClick = onDecline)
-            GoldAction("Accept", filled = true, enabled = !s.deckSizeProblem,
+            GoldAction("Accept", filled = true, enabled = !s.deckSizeProblem && !acceptBlocked,
                        modifier = Modifier.weight(2f), onClick = onAccept)
         }
     }

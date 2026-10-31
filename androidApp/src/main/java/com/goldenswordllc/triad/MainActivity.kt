@@ -261,6 +261,7 @@ class MainActivity : ComponentActivity() {
                             relayHost = RELAY_HOST, relayPort = RELAY_PORT,
                             catalog = catalog,
                             myDeckIds = battleDeck(save.value, catalog).map { it.id },
+                            cardCount = save.value.collection.values.sum(),
                             onMatchStarted = { session, state, color ->
                                 screen = Screen.P2pMatch(session, state, color)
                             },
