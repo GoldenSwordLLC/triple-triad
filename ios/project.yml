@@ -17,6 +17,7 @@ targets:
       - TriadApp
     dependencies:
       - package: TriadCore
+        product: TriadCore
     info:
       path: TriadApp/Info.plist
       properties:
