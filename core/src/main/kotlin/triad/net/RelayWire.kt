@@ -94,18 +94,33 @@ private fun makeErrMsg(reply: String) = when {
     else -> "Relay: $reply"
 }
 
+private const val RELAY_TLS_PORT = 443
+
 private suspend fun dialRelay(host: String, port: Int): Socket = withContext(Dispatchers.IO) {
-    // try EVERY resolved address: a domain may carry both A and AAAA records, and any
-    // given network (cellular loves IPv6) may reach only one of them — a single-address
-    // dial gets hard REFUSED when the server side lacks that family
+    // TLS first (port 443, hostname-verified against system CAs); fall back to the
+    // plain listener for deployments without certs. Both paths try EVERY resolved
+    // address family (a domain may carry A and AAAA; cellular prefers v6).
+    tryConnect(host, RELAY_TLS_PORT, tls = true)
+        ?: tryConnect(host, port, tls = false)
+        ?: throw java.io.IOException("relay unreachable")
+}
+
+private fun tryConnect(host: String, port: Int, tls: Boolean): Socket? {
     val addrs = java.net.InetAddress.getAllByName(host)
-    var last: Exception? = null
     for (a in addrs) {
         try {
-            return@withContext Socket().apply { connect(InetSocketAddress(a, port), 3_000) }
-        } catch (e: Exception) { last = e }
+            val raw = Socket().apply { connect(InetSocketAddress(a, port), 3_000) }
+            if (!tls) return raw
+            val factory = javax.net.ssl.SSLSocketFactory.getDefault() as javax.net.ssl.SSLSocketFactory
+            val ssl = factory.createSocket(raw, host, port, true) as javax.net.ssl.SSLSocket
+            ssl.sslParameters = ssl.sslParameters.apply {
+                endpointIdentificationAlgorithm = "HTTPS"   // verify cert against hostname
+            }
+            ssl.startHandshake()
+            return ssl
+        } catch (_: Exception) { /* next address / next mode */ }
     }
-    throw last ?: java.io.IOException("relay unreachable")
+    return null
 }
 
 private suspend fun readControlLine(socket: Socket): String = withContext(Dispatchers.IO) {
