@@ -24,9 +24,19 @@
         android:label="Triad"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:supportsRtl="true"
         android:theme="@style/Theme.Triad">
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.goldenswordllc.triad.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

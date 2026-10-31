@@ -91,6 +91,9 @@ class TradeSession(
                 send(Msg.TradeCollection(myCollection))
             }
             is Msg.TradeCollection -> {
+                if (msg.counts.size > 256 || msg.counts.values.any { it !in 1..99 }) {
+                    events.send(TradeEvent.Fault("coll", "implausible collection declaration")); return
+                }
                 peerCollection = msg.counts.filterValues { it > 0 }
                 events.send(TradeEvent.Ready(myNameOf(), peerCollection))
             }

@@ -124,13 +124,17 @@ class MainActivity : ComponentActivity() {
     }.getOrNull()
 
     private fun saveErrorToFile() {
-        val out = java.io.File(
-            java.io.File(android.os.Environment.getExternalStoragePublicDirectory(
-                android.os.Environment.DIRECTORY_DOWNLOADS).absolutePath),
-            "triad-diagnostics.txt")
         runCatching {
-            out.parentFile?.mkdirs()
+            val dir = java.io.File(filesDir, "diagnostics").apply { mkdirs() }
+            val out = java.io.File(dir, "triad-diagnostics.txt")
             out.writeText(readLastCrash() ?: "No crashes recorded.")
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                this, "com.goldenswordllc.triad.fileprovider", out)
+            startActivity(android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            })
         }
     }
 

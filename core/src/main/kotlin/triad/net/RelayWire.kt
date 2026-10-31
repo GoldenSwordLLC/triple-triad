@@ -8,7 +8,9 @@ import java.net.Socket
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
-private const val PEER_GONE = "PEER_GONE"
+// relay control lines are '.'-prefixed; game traffic is JSON ('{'), so a peer
+// cannot forge an in-band control message (L4)
+private const val PEER_GONE = ".PEER_GONE"
 
 /** The game's transport over the online relay: a plain TCP wire whose reader filters the
  *  relay's one control token (PEER_GONE) and turns it into a connection close, so the
@@ -118,7 +120,7 @@ private fun tryConnect(host: String, port: Int, tls: Boolean): Socket? {
                 }), java.security.SecureRandom())
                 ctx.socketFactory
             } else {
-                javax.net.ssl.SSLSocketFactory.getDefault() as javax.net.ssl.SSLSocketFactory
+                pinnedFactory()
             }
             val ssl = factory.createSocket(raw, host, port, true) as javax.net.ssl.SSLSocket
             if (!TEST_UNTRUSTED_TLS) {
@@ -144,4 +146,31 @@ private suspend fun readControlLine(socket: Socket): String = withContext(Dispat
         sb.append(c.toChar())
     }
     sb.toString()
+}
+
+
+// M1: only Let's Encrypt's root may terminate the relay's chain — a CA installed on the
+// device afterwards cannot MITM the connection. System validation + hostname checks
+// still run via the wrapping default manager.
+private fun pinnedFactory(): javax.net.ssl.SSLSocketFactory {
+    val tmf = javax.net.ssl.TrustManagerFactory.getInstance(
+        javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm())
+    tmf.init(null as java.security.KeyStore?)
+    val defTm = tmf.trustManagers.filterIsInstance<javax.net.ssl.X509TrustManager>().first()
+    val pinTm = object : javax.net.ssl.X509TrustManager {
+        override fun checkClientTrusted(c: Array<java.security.cert.X509Certificate>, a: String) =
+            defTm.checkClientTrusted(c, a)
+        override fun checkServerTrusted(c: Array<java.security.cert.X509Certificate>, a: String) {
+            defTm.checkServerTrusted(c, a)
+            val trusted = c.any { cert ->
+                val dn = cert.subjectX500Principal.name.uppercase()
+                dn.contains("O=INTERNET SECURITY RESEARCH GROUP") && dn.contains("CN=ISRG ROOT X1")
+            }
+            if (!trusted) throw java.security.cert.CertificateException("relay chain not issued by ISRG Root X1")
+        }
+        override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = defTm.acceptedIssuers
+    }
+    val ctx = javax.net.ssl.SSLContext.getInstance("TLS")
+    ctx.init(null, arrayOf(pinTm), java.security.SecureRandom())
+    return ctx.socketFactory
 }

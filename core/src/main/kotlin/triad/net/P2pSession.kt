@@ -135,7 +135,7 @@ class P2pSession(
     private suspend fun handle(m: Msg) { when (m) {
         is Msg.Hello -> {
             if (m.proto != 1) fault("proto", "version ${m.proto}")
-            if (isHost && m.token != token) fault("token", "wrong join token")
+            if (m.token != token) fault("token", "token mismatch")
             peerName = m.name
             events.send(SessionEvent.Connected(peerName))
         }
