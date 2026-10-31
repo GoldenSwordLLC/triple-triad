@@ -1,4 +1,25 @@
+#if canImport(Combine)
 import Combine
+#else
+// Linux core tests: a minimal stand-in so the engine compiles without UIKit-era
+// frameworks; SwiftUI (the only real consumer of these) is Apple-platform only.
+public protocol ObservableObject {}
+@propertyWrapper public struct Published<Value> {
+    public var wrappedValue: Value { didSet {} }
+    public init(wrappedValue: Value) { self.wrappedValue = wrappedValue }
+    public static var projectValue: Int { 0 }
+}
+extension Published {
+    public static subscript<EnclosingSelf: ObservableObject>(
+        _enclosingInstance object: EnclosingSelf,
+        wrapped wrappedKeyPath: ReferenceWritableKeyPath<EnclosingSelf, Value>,
+        storage storageKeyPath: ReferenceWritableKeyPath<EnclosingSelf, Published<Value>>
+    ) -> Value {
+        get { object[keyPath: storageKeyPath].wrappedValue }
+        set { object[keyPath: storageKeyPath].wrappedValue = newValue }
+    }
+}
+#endif
 import Foundation
 
 /// iOS mirror of the Android SPGameViewModel — single player vs AI (or pass & play),

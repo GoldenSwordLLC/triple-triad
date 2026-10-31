@@ -1,3 +1,4 @@
+#if canImport(Darwin)
 import Foundation
 import Network
 
@@ -50,3 +51,5 @@ public final class TcpWire: Wire {
     }
     public func close() { conn.cancel() }
 }
+
+#endif

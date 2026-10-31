@@ -1,6 +1,11 @@
+#if canImport(CoreGraphics)
 import CoreGraphics
 import Foundation
 import ImageIO
+#else
+import Foundation
+public typealias CGFloat = Double
+#endif
 
 /// Per-card art: individual 375x525 JPEGs at Art/cards/{red,blue}/NNN.jpg (001 = Geezard
 /// .. 110), loaded on demand through an NSCache. Frames, names, ranks and element icons
@@ -11,7 +16,9 @@ public enum CardArt {
     public static let cardH: CGFloat = 525
     public static let aspect: CGFloat = cardW / cardH   // 0.714
 
+    #if canImport(CoreGraphics)
     private static let cache = NSCache<NSString, CGImage>()
+    #endif
 
     /// No clamping: out-of-range numbers must FAIL to load, not silently render a
     /// neighbor (tests assert the excluded 111/112 art is truly absent).
@@ -20,6 +27,7 @@ public enum CardArt {
         return "cards/\(color)/\(String(format: "%03d", cardNo))"
     }
 
+    #if canImport(CoreGraphics)
     public static func peek(_ cardNo: Int, _ owner: Owner) -> CGImage? {
         cache.object(forKey: resourceName(cardNo, owner) as NSString)
     }
@@ -42,6 +50,21 @@ public enum CardArt {
               let image = CGImageSourceCreateImageAtIndex(src, 0, nil) else { return nil }
         return image
     }
+    #else
+    public static func peek(_ cardNo: Int, _ owner: Owner) -> Data? { nil }
+    public static func load(_ cardNo: Int, _ owner: Owner, bundle: Bundle? = nil) -> Data? {
+        guard let url = (bundle ?? .module).url(forResource: resourceName(cardNo, owner),
+                                                withExtension: "jpg", subdirectory: "Art")
+        else { return nil }
+        return try? Data(contentsOf: url)
+    }
+    public static func playmat(bundle: Bundle? = nil) -> Data? {
+        guard let url = (bundle ?? .module).url(forResource: "playmat",
+                                                withExtension: "jpg", subdirectory: "Art")
+        else { return nil }
+        return try? Data(contentsOf: url)
+    }
+    #endif
 }
 
 /// The card catalog (stats + ids), loaded from the bundled cards.json.

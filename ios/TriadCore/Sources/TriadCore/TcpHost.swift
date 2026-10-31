@@ -1,3 +1,4 @@
+#if canImport(Darwin)
 import Darwin
 import Foundation
 import Network
@@ -84,3 +85,5 @@ public func lanIpAddress() -> String? {
     }
     return en0 ?? any
 }
+
+#endif
