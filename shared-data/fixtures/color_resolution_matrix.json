@@ -1,0 +1,15 @@
+{ "name": "color_resolution_matrix",
+  "cases": [
+    { "host": "blue", "joiner": "red", "coin": 0, "hostColor": "blue", "joinerColor": "red" },
+    { "host": "blue", "joiner": "red", "coin": 1, "hostColor": "blue", "joinerColor": "red" },
+    { "host": "red",  "joiner": "blue", "coin": 0, "hostColor": "red",  "joinerColor": "blue" },
+    { "host": "blue", "joiner": "blue", "coin": 0, "hostColor": "blue", "joinerColor": "red" },
+    { "host": "blue", "joiner": "blue", "coin": 1, "hostColor": "red",  "joinerColor": "blue" },
+    { "host": "red",  "joiner": "red",  "coin": 1, "hostColor": "red",  "joinerColor": "blue" },
+    { "host": "any",  "joiner": "any",  "coin": 0, "hostColor": "blue", "joinerColor": "red" },
+    { "host": "any",  "joiner": "any",  "coin": 1, "hostColor": "red",  "joinerColor": "blue" },
+    { "host": "any",  "joiner": "blue", "coin": 0, "hostColor": "red",  "joinerColor": "blue" },
+    { "host": "any",  "joiner": "red",  "coin": 1, "hostColor": "blue", "joinerColor": "red" },
+    { "host": "blue", "joiner": "any",  "coin": 0, "hostColor": "blue", "joinerColor": "red" },
+    { "host": "red",  "joiner": "any",  "coin": 1, "hostColor": "red",  "joinerColor": "blue" }
+  ] }

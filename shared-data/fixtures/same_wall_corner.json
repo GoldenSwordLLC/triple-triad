@@ -1,0 +1,8 @@
+{ "name": "same_wall_corner", "rules": { "same": true, "plus": false, "sameWall": true, "elemental": false },
+  "cards": {
+    "p": { "name": "P", "level": 1, "element": "none", "top": 10, "right": 1, "bottom": 1, "left": 1 },
+    "a": { "name": "A", "level": 1, "element": "none", "top": 1, "right": 1, "bottom": 1, "left": 1 } },
+  "board": [null, {"card":"a","owner":"red"}, null, null, null, null, null, null, null],
+  "hands": { "blue": ["p"], "red": [] }, "turn": "blue",
+  "place": { "card": "p", "cell": 0 },
+  "expectFlips": [ {"cell":1,"cause":"same","wave":0} ] }

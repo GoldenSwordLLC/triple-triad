@@ -1,0 +1,129 @@
+{
+ "name": "plus_combo_two_waves",
+ "rules": {
+  "same": false,
+  "plus": true,
+  "sameWall": false,
+  "elemental": false
+ },
+ "cards": {
+  "p": {
+   "name": "P",
+   "level": 1,
+   "element": "none",
+   "top": 1,
+   "right": 1,
+   "bottom": 4,
+   "left": 5
+  },
+  "a": {
+   "name": "A",
+   "level": 1,
+   "element": "none",
+   "top": 1,
+   "right": 6,
+   "bottom": 1,
+   "left": 3
+  },
+  "b": {
+   "name": "B",
+   "level": 1,
+   "element": "none",
+   "top": 7,
+   "right": 1,
+   "bottom": 1,
+   "left": 2
+  },
+  "c": {
+   "name": "C",
+   "level": 1,
+   "element": "none",
+   "top": 2,
+   "right": 1,
+   "bottom": 2,
+   "left": 1
+  },
+  "f": {
+   "name": "F",
+   "level": 1,
+   "element": "none",
+   "top": 1,
+   "right": 1,
+   "bottom": 1,
+   "left": 1
+  },
+  "g": {
+   "name": "G",
+   "level": 1,
+   "element": "none",
+   "top": 1,
+   "right": 1,
+   "bottom": 1,
+   "left": 1
+  }
+ },
+ "board": [
+  {
+   "card": "c",
+   "owner": "red"
+  },
+  {
+   "card": "a",
+   "owner": "red"
+  },
+  null,
+  {
+   "card": "f",
+   "owner": "red"
+  },
+  {
+   "card": "g",
+   "owner": "red"
+  },
+  {
+   "card": "b",
+   "owner": "red"
+  },
+  null,
+  null,
+  null
+ ],
+ "hands": {
+  "blue": [
+   "p"
+  ],
+  "red": []
+ },
+ "turn": "blue",
+ "place": {
+  "card": "p",
+  "cell": 2
+ },
+ "expectFlips": [
+  {
+   "cell": 5,
+   "cause": "plus",
+   "wave": 0
+  },
+  {
+   "cell": 1,
+   "cause": "plus",
+   "wave": 0
+  },
+  {
+   "cell": 4,
+   "cause": "combo",
+   "wave": 1
+  },
+  {
+   "cell": 0,
+   "cause": "combo",
+   "wave": 1
+  },
+  {
+   "cell": 3,
+   "cause": "combo",
+   "wave": 2
+  }
+ ]
+}
