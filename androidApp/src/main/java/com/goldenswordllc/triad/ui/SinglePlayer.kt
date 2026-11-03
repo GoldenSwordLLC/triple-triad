@@ -98,7 +98,7 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
                 val mag = kotlin.math.sqrt(
                     e.values[0] * e.values[0] + e.values[1] * e.values[1] + e.values[2] * e.values[2])
                 val now = System.currentTimeMillis()
-                if (mag > 25 && now - last > 1200) {
+                if (mag > 45 && now - last > 1200) {
                     last = now
                     val cards = catalog.values
                         .filter { it.id !in triad.core.EXPERT_EXCLUSIVES }
