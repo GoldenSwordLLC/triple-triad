@@ -523,7 +523,14 @@ class P2pMatchViewModel(
                     is SessionEvent.MatchStarted -> { state = e.state; myColor = e.myColor }
                     is SessionEvent.MoveApplied -> { state = e.state; lastFlips = e.flips }
                     is SessionEvent.RematchStarted -> { state = e.state; result = null; lastFlips = emptyList() }
-                    is SessionEvent.GameOver -> result = ResultState(outcome = e.outcome)
+                    is SessionEvent.GameOver -> {
+                        // under a pick-based trade rule the loser sits waiting while the
+                        // winner picks — block rematch + show that state
+                        val tr = session.tradeRule
+                        val awaitingPick = e.outcome is SessionEvent.Outcome.Lost &&
+                            (tr == TradeRule.one || tr == TradeRule.diff || tr == TradeRule.all)
+                        result = ResultState(outcome = e.outcome, awaitingPeerPick = awaitingPick)
+                    }
                     is SessionEvent.TradeResolved -> {
                         result = result?.copy(transfers = e.transfers, applied = true)
                         onTransfers(e.transfers, myColor)
@@ -634,9 +641,10 @@ fun P2pMatchScreen(
                 onConfirmPick = vm::confirmPick,
                 onDone = { vm.done(); onExit() },
                 onRematch = vm::rematch,
+                onViewBoard = { viewBoard = true },
             )
         }
-        if (vm.result != null && viewBoard) {
+        if (vm.result != null && viewBoard && vm.ended == null) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                 Box(Modifier.padding(bottom = 10.dp)
                         .clip(RoundedCornerShape(12.dp))

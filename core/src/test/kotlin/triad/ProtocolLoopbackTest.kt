@@ -99,6 +99,80 @@ class ProtocolLoopbackTest {
             "both devices must derive the SAME transfer")
     }
 
+    @Test fun `rematch after a finished match restarts an identical game on both phones`() = runBlocking {
+        val catalog = (1..10).map { i ->
+            val r = if (i <= 5) 6 else 1
+            CardDef("c$i", "C$i", 1, Element.none, r, r, r, r)
+        }.associateBy { it.id }
+        val server = ServerSocket(0)
+        val hostSockAsync = async(Dispatchers.IO) { server.accept() }
+        val joinSock = Socket("127.0.0.1", server.localPort)
+        val hostSock = hostSockAsync.await()
+        server.close()
+
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val host = P2pSession(TcpWire(hostSock, scope), isHost = true, myName = "Host", token = "tok1",
+            catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.blue),
+            hostSettings = MatchSettings(trade = TradeRule.none))
+        val joiner = P2pSession(TcpWire(joinSock, scope), isHost = false, myName = "Joiner", token = "tok1",
+            catalog = catalog, me = P2pSession.PlayerLocal((6..10).map { "c$it" }, emptyList(), ColorPref.red),
+            hostSettings = null)
+
+        val failures = CopyOnWriteArrayList<SessionEvent>()
+        val rematchStates = CopyOnWriteArrayList<GameState>()
+        val hostSecondGame = CompletableDeferred<Unit>()
+        val joinerSecondGame = CompletableDeferred<Unit>()
+        class Side(val s: P2pSession, var color: Owner) {
+            var lastEvent: SessionEvent? = null
+            var gamesEnded = 0
+            val outcomes = CopyOnWriteArrayList<SessionEvent.Outcome>()
+        }
+        fun maybePlay(side: Side, state: GameState) {
+            if (!state.isOver && state.turn == side.color)
+                side.s.play(0, state.board.cells.indices.first { state.board[it].card == null })
+        }
+        suspend fun drive(side: Side, hostSide: Boolean) {
+            side.s.eventsFlow.collect { e ->
+                side.lastEvent = e
+                when (e) {
+                is SessionEvent.RulesProposed -> side.s.acceptRules()
+                is SessionEvent.VerifyDecks -> side.s.ready()
+                is SessionEvent.MatchStarted -> { side.color = e.myColor; maybePlay(side, e.state) }
+                is SessionEvent.MoveApplied -> maybePlay(side, e.state)
+                is SessionEvent.RematchStarted -> { rematchStates.add(e.state); maybePlay(side, e.state) }
+                is SessionEvent.GameOver -> {
+                    side.outcomes.add(e.outcome)
+                    side.gamesEnded++
+                    // game 1: only the HOST presses REMATCH; game 2: settle and stop
+                    if (side.gamesEnded == 1 && hostSide) side.s.rematch()
+                    if (side.gamesEnded == 2) (if (hostSide) hostSecondGame else joinerSecondGame).complete(Unit)
+                }
+                is SessionEvent.Forfeit, is SessionEvent.Declined,
+                is SessionEvent.Disconnected, is SessionEvent.ProtocolError -> failures.add(e)
+                else -> {}
+            } }
+        }
+        val hostSide = Side(host, Owner.blue); val joinerSide = Side(joiner, Owner.red)
+        val c1 = launch { drive(hostSide, true) }
+        val c2 = launch { drive(joinerSide, false) }
+        host.start(); joiner.start()
+
+        fun stall(s: Side) = s.lastEvent?.let { it::class.simpleName } ?: "nothing"
+        try { withTimeout(30_000) { hostSecondGame.await(); joinerSecondGame.await() } } catch (t: Throwable) {
+            throw AssertionError("rematch loop stalled: host last=[${stall(hostSide)} ${hostSide.outcomes}] " +
+                "joiner last=[${stall(joinerSide)} ${joinerSide.outcomes}] failures=$failures", t)
+        }
+        c1.cancel(); c2.cancel(); host.teardown(); joiner.teardown()
+
+        assertTrue(failures.isEmpty(), "unexpected events: $failures")
+        assertEquals(2, rematchStates.size, "both phones must enter the rematch")
+        assertEquals(rematchStates[0], rematchStates[1], "rematch state must be identical on both phones")
+        assertTrue(rematchStates[0].board.cells.all { it.card == null }, "rematch board must start empty")
+        assertEquals(2, hostSide.outcomes.size); assertEquals(2, joinerSide.outcomes.size)
+        assertTrue(hostSide.outcomes.all { it is SessionEvent.Outcome.Won }, "host=${hostSide.outcomes}")
+        assertTrue(joinerSide.outcomes.all { it is SessionEvent.Outcome.Lost }, "joiner=${joinerSide.outcomes}")
+    }
+
     @Test fun `a mid-match disconnect forfeits to the remaining player`() = runBlocking {
         val catalog = (1..10).map { i ->
             CardDef("c$i", "C$i", 1, Element.none, 6, 6, 6, 6)

@@ -392,15 +392,17 @@ fun EndOfMatchHost(
     result: ResultState, peerName: String, myColor: Owner,
     onConfirmPick: (List<String>) -> Unit, onDone: () -> Unit,
     onRematch: (() -> Unit)? = null,
+    onViewBoard: (() -> Unit)? = null,
 ) {
     val pending = (result.outcome as? SessionEvent.Outcome.Won)?.pendingPick
     if (pending != null && !result.applied) TradePickScreen(pending, peerName, myColor.other, onConfirmPick)
-    else MatchResultScreen(result, myColor, onDone, onRematch)
+    else MatchResultScreen(result, myColor, onDone, onRematch, onViewBoard)
 }
 
 @Composable
 fun MatchResultScreen(state: ResultState, myColor: Owner, onDone: () -> Unit,
-                      onRematch: (() -> Unit)? = null) {
+                      onRematch: (() -> Unit)? = null,
+                      onViewBoard: (() -> Unit)? = null) {
     Box(Modifier.fillMaxSize()
             .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                        indication = null) {}
@@ -440,6 +442,16 @@ fun MatchResultScreen(state: ResultState, myColor: Owner, onDone: () -> Unit,
                      .background(Color(120, 85, 20))
                      .border(2.dp, Color(0xFFD4AF37), RoundedCornerShape(12.dp))
                      .clickable { onDone() }.padding(vertical = 12.dp))
+            if (onViewBoard != null) {
+                Spacer(Modifier.height(8.dp))
+                Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                        .background(Color(30, 22, 8))
+                        .border(1.dp, Color(0xFFD4AF37), RoundedCornerShape(12.dp))
+                        .clickable { onViewBoard() }.padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center) {
+                    Text("VIEW BOARD", color = Color(230, 205, 160), fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }
