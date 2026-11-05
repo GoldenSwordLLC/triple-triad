@@ -84,17 +84,75 @@ object TriadCrypto {
 }
 
 
-/** The persisted device keypair as a core RelayIdentity (ed25519, Base64 SPKI/PKCS8). */
+/** The relay identity, hardware-backed where the device allows it.
+ *
+ * Three tiers: Android Keystore ed25519 (API 33+ AND a KeyMint HAL that actually
+ * supports it — upgraded devices often run Keymaster 4.x, which rejects ed25519
+ * generation at runtime, so the attempt itself is the feature check), falling
+ * back to the persisted SPKI/PKCS8 pair in SharedPreferences. Keystore keys
+ * cannot be imported, so an install that already had an SP key ROTATES once to
+ * a Keystore identity when support is available; the SP key material is then
+ * erased. A one-time self-test signature proves the HAL can sign before the
+ * rotation commits, so a half-broken HAL leaves the old identity in place. */
+@Volatile private var cachedIdentity: triad.net.RelayIdentity? = null
+
 fun android.content.Context.relayIdentity(): triad.net.RelayIdentity {
-    // No KeyFactory here: JCA Ed25519 exists only on API 33+, and this runs during
-    // composition (a crash here takes down the whole screen). The raw 32-byte key
-    // is the tail of the SPKI blob; signing goes through TriadCrypto's
-    // JCA-then-BouncyCastle fallbacks, which work on every API level.
+    cachedIdentity?.let { return it }
+    val ident = keystoreRelayIdentity() ?: spRelayIdentity()
+    cachedIdentity = ident
+    return ident
+}
+
+private const val KS_ALIAS = "triad-relay-id"
+
+private fun android.content.Context.keystoreRelayIdentity(): triad.net.RelayIdentity? {
+    if (android.os.Build.VERSION.SDK_INT < 33) return null
+    val prefs = getSharedPreferences("triad", android.content.Context.MODE_PRIVATE)
+    // a recorded SP verdict is sticky: HAL capabilities don't change under us
+    if (prefs.getString("id_backend", null) == "sp") return null
+    return try {
+        val ks = java.security.KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        val entry = (ks.getEntry(KS_ALIAS, null) as? java.security.KeyStore.PrivateKeyEntry)
+            ?: run {
+                val kpg = java.security.KeyPairGenerator.getInstance("Ed25519", "AndroidKeyStore")
+                kpg.initialize(android.security.keystore.KeyGenParameterSpec.Builder(
+                    KS_ALIAS,
+                    android.security.keystore.KeyProperties.PURPOSE_SIGN or
+                        android.security.keystore.KeyProperties.PURPOSE_VERIFY).build())
+                kpg.generateKeyPair()
+                ks.getEntry(KS_ALIAS, null) as java.security.KeyStore.PrivateKeyEntry
+            }
+        val ident = object : triad.net.RelayIdentity {
+            // the X.509 SPKI tail of an ed25519 key IS the raw 32-byte key we put on
+            // the wire (the same bytes the SP path extracts)
+            override val pubkeyHex =
+                entry.certificate.publicKey.encoded.takeLast(32).toHex()
+            override fun sign(message: String): String =
+                java.security.Signature.getInstance("Ed25519").run {
+                    initSign(entry.privateKey); update(message.toByteArray()); sign()
+                }.toHex()
+        }
+        ident.sign("triad-keystore-selftest")   // prove signing works before committing
+        prefs.edit().putString("id_backend", "ks")
+            .remove("id_priv").remove("id_pub").apply()   // rotation: erase the SP copy
+        ident
+    } catch (_: Throwable) {
+        prefs.edit().putString("id_backend", "sp").apply()
+        null
+    }
+}
+
+/** Legacy path: the persisted SPKI/PKCS8 base64 pair. No KeyFactory here — JCA
+ *  ed25519 exists only on API 33+, and this runs during composition. The raw
+ *  32-byte key is the tail of the SPKI blob; signing goes through TriadCrypto's
+ *  JCA-then-BouncyCastle fallbacks, which work on every API level. */
+private fun android.content.Context.spRelayIdentity(): triad.net.RelayIdentity {
     val (pub, priv) = TriadCrypto.ensureIdentity(this)
-    val pubHex = Base64.getDecoder().decode(pub).takeLast(32)
-        .joinToString("") { "%02x".format(it) }
     return object : triad.net.RelayIdentity {
-        override val pubkeyHex: String = pubHex
+        override val pubkeyHex = java.util.Base64.getDecoder().decode(pub).takeLast(32).toHex()
         override fun sign(message: String): String = TriadCrypto.signHex(priv, message)
     }
 }
+
+private fun List<Byte>.toHex(): String = joinToString("") { "%02x".format(it) }
+private fun ByteArray.toHex(): String = toList().toHex()
