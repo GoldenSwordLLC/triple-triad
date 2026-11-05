@@ -30,6 +30,12 @@ fun isOnWifi(context: android.content.Context): Boolean {
     return caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
 }
 
+/** The build's versionName, sent to the relay so it can gate old clients. */
+fun appVersionName(context: android.content.Context): String =
+    runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0.0.0"
+    }.getOrDefault("0.0.0")
+
 fun qrBitmap(content: String, size: Int): Bitmap {
     val m = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size)
     return Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565).apply {

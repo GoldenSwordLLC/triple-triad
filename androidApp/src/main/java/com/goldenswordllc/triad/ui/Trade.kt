@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.goldenswordllc.triad.net.isOnWifi
+import com.goldenswordllc.triad.net.appVersionName
 import com.goldenswordllc.triad.net.relayIdentity
 import com.goldenswordllc.triad.net.lanIp
 import com.goldenswordllc.triad.net.parseInvite
@@ -43,6 +44,7 @@ class TradeHostViewModel(
     private val catalog: Map<String, CardDef>,
     private val myCollection: Map<String, Int>,
     private val identity: triad.net.RelayIdentity,
+    private val appVersion: String,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val qrPayload = mutableStateOf<String?>(null)
@@ -77,7 +79,7 @@ class TradeHostViewModel(
         }
         scope.launch {
             try {
-                val (w, code) = hostRelay(RELAY_HOST, RELAY_PORT, scope, identity)
+                val (w, code) = hostRelay(RELAY_HOST, RELAY_PORT, scope, identity, appVersion)
                 if (claimed.compareAndSet(false, true)) {
                     wire = w; relayCode.value = code
                     attach(w, code)
@@ -159,7 +161,7 @@ fun TradeHostScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val lan = remember { if (isOnWifi(context)) lanIp() else null }
     val vm = remember { TradeHostViewModel(lan, catalog, myCollection,
-        context.relayIdentity()) }
+        context.relayIdentity(), appVersionName(context)) }
     LaunchedEffect(Unit) {
         vm.start()
         while (vm.session.value == null) delay(100)
@@ -223,6 +225,7 @@ fun TradeJoinScreen(
 ) {
     val scope = rememberCoroutineScope()
     val wireScope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    val appVer = appVersionName(androidx.compose.ui.platform.LocalContext.current)
     var mode by remember { mutableStateOf("choose") }      // choose | scan | code | busy
     var code by remember { mutableStateOf("") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -295,7 +298,7 @@ fun TradeJoinScreen(
                                 try {
                                     val canonical = canonicalRelayCode(code)
                                         ?: throw java.io.IOException("Codes look like 53DA92.")
-                                    attach(joinRelay(RELAY_HOST, RELAY_PORT, canonical, wireScope), canonical)
+                                    attach(joinRelay(RELAY_HOST, RELAY_PORT, canonical, wireScope, appVer), canonical)
                                 } catch (e: Exception) {
                                     errorMsg = e.message ?: "Could not reach the relay"
                                     mode = "code"

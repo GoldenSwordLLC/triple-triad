@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import triad.net.hostRelay
 import triad.net.canonicalRelayCode
+import com.goldenswordllc.triad.net.appVersionName
 import com.goldenswordllc.triad.net.relayIdentity
 
 import triad.net.joinRelay
@@ -45,6 +46,7 @@ class OnlineHostViewModel(
     private val catalog: Map<String, CardDef>,
     private val myDeckIds: List<String>,
     private val identity: triad.net.RelayIdentity,
+    private val appVersion: String,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val code = MutableStateFlow<String?>(null)
@@ -57,7 +59,7 @@ class OnlineHostViewModel(
         if (session.value != null || code.value != null) return
         scope.launch {
             try {
-                val (w, room) = hostRelay(relayHost, relayPort, scope, identity)
+                val (w, room) = hostRelay(relayHost, relayPort, scope, identity, appVersion)
                 wire = w
                 code.value = room
                 val s = P2pSession(w, isHost = true, myName = "Host", token = room, catalog = catalog,
@@ -103,7 +105,7 @@ fun OnlineHostScreen(
 ) {
     val idCtx = androidx.compose.ui.platform.LocalContext.current
     val vm = remember { OnlineHostViewModel(relayHost, relayPort, catalog, myDeckIds,
-        idCtx.relayIdentity()) }
+        idCtx.relayIdentity(), appVersionName(idCtx)) }
     // NOTE: no shutdown-on-dispose here. Navigation to the match screen disposes this
     // composable, and closing the host wire at that moment would hang up on the joiner
     // mid-match; the VM's scope ends with its explicit Cancel or app exit instead.
@@ -234,6 +236,7 @@ fun OnlineJoinScreen(
 ) {
     val scope = rememberCoroutineScope()
     val wireScope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    val appVer = appVersionName(LocalContext.current)
     var code by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -284,7 +287,7 @@ fun OnlineJoinScreen(
                                 try {
                                     val canonical = canonicalRelayCode(code)
                                         ?: throw java.io.IOException("Codes look like 53DA92.")
-                                    val wire = joinRelay(relayHost, relayPort, canonical, wireScope)
+                                    val wire = joinRelay(relayHost, relayPort, canonical, wireScope, appVer)
                                     val s = P2pSession(wire, isHost = false, myName = "Joiner", token = canonical,
                                         catalog = catalog,
                                         me = P2pSession.PlayerLocal(myDeckIds, emptyList(), ColorPref.any),

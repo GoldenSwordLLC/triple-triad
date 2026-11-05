@@ -27,20 +27,34 @@ class RealRelayTest {
             "-keyout", tk.absolutePath, "-out", tc.absolutePath,
             "-days", "1", "-nodes", "-subj", "/CN=localhost").start().waitFor()
         triad.net.TEST_UNTRUSTED_TLS = true
+        // --min-version pins the gate (no GitHub lookups from tests); the clients
+        // below must report exactly this version or the relay refuses them
+        val testVer = "9.9.9"
         val proc = ProcessBuilder(
             "python3", scriptFile.absolutePath, "--port", "0", "--park", "60", "--db", db.absolutePath,
+            "--min-version", testVer,
             "--tls-cert", tc.absolutePath, "--tls-key", tk.absolutePath
         ).redirectErrorStream(true).start()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
             var port = -1
-            val deadline = System.currentTimeMillis() + 15_000
-            while (port < 0 && System.currentTimeMillis() < deadline) {
-                if (proc.inputStream.available() == 0) { Thread.sleep(50); continue }
-                val line = proc.inputStream.bufferedReader().readLine() ?: break
-                val m = Regex("TLS on [^ ]+:(\\d+)").find(line)
-                if (m != null) port = m.groupValues[1].toInt()
-            }
+            // read the banner on a helper thread: available() on the raw stream lies
+            // once a BufferedReader has buffered ahead, and a blocking readLine on
+            // the test thread could hang forever on a silent relay
+            val portFuture = java.util.concurrent.CompletableFuture<Int>()
+            Thread {
+                runCatching {
+                    val stdout = proc.inputStream.bufferedReader()
+                    while (true) {
+                        val line = stdout.readLine() ?: break
+                        val m = Regex("TLS on [^ ]+:(\\d+)").find(line)
+                        if (m != null) { portFuture.complete(m.groupValues[1].toInt()); break }
+                    }
+                }
+            }.apply { isDaemon = true }.start()
+            try {
+                port = portFuture.get(15, java.util.concurrent.TimeUnit.SECONDS)
+            } catch (_: Exception) {}
             assertTrue(port > 0, "relay never announced its port")
 
             runBlocking {
@@ -49,14 +63,14 @@ class RealRelayTest {
                     CardDef("c$i", "C$i", 1, Element.none, r, r, r, r)
                 }.associateBy { it.id }
 
-                val (hostWire, code) = hostRelay("127.0.0.1", port, scope, triad.net.JcaRelayIdentity())
+                val (hostWire, code) = hostRelay("127.0.0.1", port, scope, triad.net.JcaRelayIdentity(), testVer)
                 assertTrue(Regex("^[2-9]{2}[A-HJ-KM-NP-Z]{2}[2-9]{2}$").matches(code), "code shape: $code")
                 val host = P2pSession(hostWire, isHost = true, myName = "Host", token = code,
                     catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.blue),
                     hostSettings = MatchSettings(trade = TradeRule.none))
 
                 val sloppy = code.lowercase().chunked(2).joinToString(" ")
-                val joinWire = joinRelay("127.0.0.1", port, sloppy, scope)
+                val joinWire = joinRelay("127.0.0.1", port, sloppy, scope, testVer)
                 val joiner = P2pSession(joinWire, isHost = false, myName = "Joiner", token = code,
                     catalog = catalog, me = P2pSession.PlayerLocal((6..10).map { "c$it" }, emptyList(), ColorPref.red),
                     hostSettings = null)

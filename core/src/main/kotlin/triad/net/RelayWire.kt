@@ -76,16 +76,18 @@ class RelayWire(socket: Socket, scope: CoroutineScope) : Wire {
     override fun close() { outbound.close() }
 }
 
-/** Host-side relay handshake: dial out, HOST, and receive the room code. The code doubles
- *  as the session token, so it is returned alongside the wire. */
+/** Host-side relay handshake: dial out, HOST (identity-signed, version-tagged),
+ *  and receive the room code. The code doubles as the session token, so it is
+ *  returned alongside the wire. The relay refuses versions older than the latest
+ *  GitHub release. */
 suspend fun hostRelay(relayHost: String, relayPort: Int, scope: CoroutineScope,
-                      identity: RelayIdentity): Pair<Wire, String> {
+                      identity: RelayIdentity, appVersion: String): Pair<Wire, String> {
     val socket = dialRelay(relayHost, relayPort)
     val ts = System.currentTimeMillis() / 1000
     val sig = identity.sign(RelayIdentityProto.hostMessage(identity.pubkeyHex, ts))
     withContext(Dispatchers.IO) {
         val out = socket.getOutputStream()
-        out.write("HOST ${identity.pubkeyHex} $ts $sig\n".toByteArray()); out.flush()
+        out.write("HOST ${identity.pubkeyHex} $ts $sig $appVersion\n".toByteArray()); out.flush()
     }
     val reply = readControlLine(socket)
     if (!reply.startsWith("CODE ")) throw IOException(makeErrMsg(reply))
@@ -97,13 +99,15 @@ suspend fun hostRelay(relayHost: String, relayPort: Int, scope: CoroutineScope,
 }
 
 /** Joiner-side relay handshake: dial out, JOIN with a forgiving code (case and separators
- *  are normalized — the canonical form is lowercase words joined by hyphens). */
-suspend fun joinRelay(relayHost: String, relayPort: Int, code: String, scope: CoroutineScope): Wire {
+ *  are normalized — the canonical form is lowercase words joined by hyphens) and the
+ *  app version, which the relay gates against the latest release. */
+suspend fun joinRelay(relayHost: String, relayPort: Int, code: String, scope: CoroutineScope,
+                      appVersion: String): Wire {
     val canonical = canonicalRelayCode(code) ?: throw IOException("Codes look like 53DA92.")
     val socket = dialRelay(relayHost, relayPort)
     withContext(Dispatchers.IO) {
         val out = socket.getOutputStream()
-        out.write(("JOIN $canonical\n").toByteArray()); out.flush()
+        out.write(("JOIN $canonical $appVersion\n").toByteArray()); out.flush()
     }
     val reply = readControlLine(socket)
     if (reply != "OK") throw IOException(makeErrMsg(reply))
@@ -118,6 +122,7 @@ fun canonicalRelayCode(input: String): String? {
 }
 
 private fun makeErrMsg(reply: String) = when {
+    reply.startsWith("ERR version") -> "Update required: install the latest Triad release, then try again."
     reply.startsWith("ERR nohost") -> "No match with that code, check it and try again."
     reply.startsWith("ERR limit") -> "Too many attempts, try again in 15 minutes."
     else -> "Relay: $reply"
