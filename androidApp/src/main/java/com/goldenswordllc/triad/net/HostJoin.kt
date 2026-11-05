@@ -77,7 +77,7 @@ class HostViewModel(private val app: Application, private val catalog: Map<Strin
 
     fun start(settings: MatchSettings, me: P2pSession.PlayerLocal, bleEnabled: Boolean = true) {
         myName = "Host"
-        val token = randomHex(4)
+        val token = secureHex(4)
         scope.launch(Dispatchers.IO) {
             try {
                 val server = ServerSocket(0)
@@ -97,13 +97,20 @@ class HostViewModel(private val app: Application, private val catalog: Map<Strin
                     qrPayload.value = "triad://v1?tr=tcp&ip=$ip&port=${server.localPort}&name=Host&t=$token"
                 }
                 if (bleEnabled) startBle(token, settings, me, onlyRadio = false)
-                val socket = try { server.accept() } catch (_: IOException) { return@launch }
+                // A2: the first socket to arrive is not necessarily a friend — a LAN
+                // port-scanner wins accept() and then fails the token check, which
+                // used to wedge hosting. Keep accepting until a peer PROVES the
+                // token in their Hello.
+                while (!claimed.get()) {
+                    val socket = try { server.accept() } catch (_: IOException) { return@launch }
+                    if (gate(TcpWire(socket, scope), token, settings, me)) {
+                        runCatching { server.close() }; serverSocket = null
+                        stopBle()
+                        transport.value = "Wi-Fi"
+                        return@launch
+                    }
+                }
                 runCatching { server.close() }; serverSocket = null
-                if (!claimed.compareAndSet(false, true)) { socket.close(); return@launch }
-                stopBle()
-                transport.value = "Wi-Fi"
-                val s = newSession(TcpWire(socket, scope), token, settings, me)
-                withContext(Dispatchers.Main) { session.value = s }
             } catch (e: Exception) {
 
                 error.value = e.message ?: e::class.java.simpleName
@@ -111,27 +118,97 @@ class HostViewModel(private val app: Application, private val catalog: Map<Strin
         }
     }
 
+    /** Run one candidate session; true iff the peer's Hello carried the token and we
+     *  claimed it. The gate's collector consumes exactly one event (Connected) and
+     *  hands the stream to the UI — events are exclusive-consumer. */
+    private suspend fun gate(wire: Wire, token: String, settings: MatchSettings,
+                             me: P2pSession.PlayerLocal): Boolean =
+        withTimeoutOrNull(6_000) {
+            val s = newSession(wire, token, settings, me)
+            try {
+                suspendCancellableCoroutine { cont ->
+                    var decided = false
+                    var job: Job? = null
+                    fun finish(v: Boolean) {
+                        if (!decided) { decided = true; cont.resumeWith(Result.success(v)) }
+                    }
+                    job = scope.launch {
+                        s.eventsFlow.collect { e ->
+                            when (e) {
+                                is SessionEvent.Connected -> {
+                                    job?.cancel()
+                                    if (claimed.compareAndSet(false, true)) {
+                                        session.value = s; finish(true)
+                                    } else finish(false)
+                                }
+                                is SessionEvent.Declined, is SessionEvent.Disconnected,
+                                is SessionEvent.Forfeit, is SessionEvent.ProtocolError -> finish(false)
+                                else -> {}
+                            }
+                        }
+                    }
+                    cont.invokeOnCancellation { job?.cancel(); runCatching { wire.close() } }
+                }
+            } finally {
+                if (session.value !== s) runCatching { wire.close() }
+            }
+        } ?: false
+
+    private var bleOnly = false
+    private var bleRestarts = 0
+
     private fun startBle(token: String, settings: MatchSettings, me: P2pSession.PlayerLocal, onlyRadio: Boolean) {
         if (bleWire != null) return
+        bleRestarts = 0
+        spinBle(token, settings, me, onlyRadio)
+    }
+
+    private fun spinBle(token: String, settings: MatchSettings, me: P2pSession.PlayerLocal, onlyRadio: Boolean) {
+        bleOnly = onlyRadio
         val wire = BleServerWire(app, scope)
         bleWire = wire
         val s = newSession(wire, token, settings, me)
-        wire.onPeerConnected = {
-            if (claimed.compareAndSet(false, true)) {
-                runCatching { serverSocket?.close() }; serverSocket = null
-                transport.value = "Bluetooth"
-                session.value = s
-            } else wire.close()
+        wire.onPeerConnected = { transport.value = "Bluetooth" }
+        val job = scope.launch {
+            s.eventsFlow.collect { e ->
+                when (e) {
+                    // claim only on token proof, not on first subscriber (A2)
+                    is SessionEvent.Connected -> {
+                        if (claimed.compareAndSet(false, true)) {
+                            runCatching { serverSocket?.close() }; serverSocket = null
+                            session.value = s
+                        } else wire.close()
+                    }
+                    is SessionEvent.Declined, is SessionEvent.Disconnected,
+                    is SessionEvent.Forfeit, is SessionEvent.ProtocolError ->
+                        if (!claimed.get()) restartBle(token, settings, me)
+                    else -> {}
+                }
+            }
         }
         wire.start(onFail = { raw ->
             bleWire = null
+            job.cancel()
             val e = if (raw.contains("BLUETOOTH_CONNECT") || raw.contains("BLUETOOTH_ADVERTISE") ||
                          raw.contains("android.permission"))
                 "Bluetooth permission missing, restart hosting to grant it."
             else raw
-            if (onlyRadio && !claimed.get()) error.value = e
+            if (bleOnly && !claimed.get()) error.value = e
 
         })    }
+
+    /** A bogus first subscriber faulted the BLE session pre-claim: rebuild the GATT
+     *  server and keep waiting instead of wedging the host. */
+    private fun restartBle(token: String, settings: MatchSettings, me: P2pSession.PlayerLocal) {
+        if (claimed.get()) return
+        bleWire?.let { runCatching { it.close() } }
+        bleWire = null
+        if (++bleRestarts > 5) {
+            if (bleOnly && !claimed.get()) error.value = "Bluetooth kept failing, try hosting again."
+            return
+        }
+        spinBle(token, settings, me, bleOnly)
+    }
 
     private fun stopBle() {
         bleWire?.close(); bleWire = null

@@ -27,7 +27,7 @@ import com.goldenswordllc.triad.net.isOnWifi
 import com.goldenswordllc.triad.net.relayIdentity
 import com.goldenswordllc.triad.net.lanIp
 import com.goldenswordllc.triad.net.parseInvite
-import triad.core.randomHex
+import triad.core.secureHex
 import com.goldenswordllc.triad.net.qrBitmap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -56,7 +56,7 @@ class TradeHostViewModel(
 
     fun start() {
         if (qrPayload.value != null || relayCode.value != null) return
-        val token = randomHex(4)
+        val token = secureHex(4)
         // BOTH radios concurrently: the LAN branch blocks in accept(), so a sequential
         // relay call would never run while the QR waits — the code must be requested
         // in parallel; `claimed` arbitrates whichever peer lands first
@@ -66,10 +66,11 @@ class TradeHostViewModel(
                     val s = ServerSocket(0)
                     server = s
                     qrPayload.value = "triad://v1?tr=tcp&mode=trade&ip=$lanIpAvailable&port=${s.localPort}&t=$token"
-                    val sock = withContext(Dispatchers.IO) { runCatching { s.accept() }.getOrNull() }
-                    runCatching { s.close() }
-                    if (sock != null && claimed.compareAndSet(false, true)) {
-                        attach(TcpWire(sock, scope), token)
+                    // A2: keep accepting until a peer's Hello proves the token — a
+                    // LAN scanner winning accept() used to wedge the host
+                    while (!claimed.get()) {
+                        val sock = withContext(Dispatchers.IO) { runCatching { s.accept() }.getOrNull() } ?: break
+                        if (tradeGate(sock, token)) { runCatching { s.close() }; server = null; break }
                     }
                 } catch (_: Exception) {}
             }
@@ -86,6 +87,42 @@ class TradeHostViewModel(
             }
         }
     }
+
+    /** One LAN candidate: true iff the peer's Hello carried the token and the session
+     *  was published (Ready). A failed attempt is torn down and the accept loop continues. */
+    private suspend fun tradeGate(sock: Socket, token: String): Boolean =
+        withTimeoutOrNull(8_000) {
+            val wire = TcpWire(sock, scope)
+            val s = TradeSession(wire, isHost = true, myName = "Host", token = token,
+                catalog = catalog, myCollection = myCollection)
+            s.start()
+            try {
+                suspendCancellableCoroutine { cont ->
+                    var decided = false
+                    var job: kotlinx.coroutines.Job? = null
+                    fun finish(v: Boolean) {
+                        if (!decided) { decided = true; cont.resumeWith(Result.success(v)) }
+                    }
+                    job = scope.launch {
+                        s.eventsFlow.collect { e ->
+                            when (e) {
+                                is TradeEvent.Ready -> {
+                                    job?.cancel()
+                                    if (claimed.compareAndSet(false, true)) {
+                                        session.value = s; finish(true)
+                                    } else finish(false)
+                                }
+                                is TradeEvent.Fault, TradeEvent.PeerGone -> finish(false)
+                                else -> {}
+                            }
+                        }
+                    }
+                    cont.invokeOnCancellation { job?.cancel(); runCatching { wire.close() } }
+                }
+            } finally {
+                if (session.value !== s) runCatching { wire.close() }
+            }
+        } ?: false
 
     private fun attach(w: Wire, token: String) {
         val s = TradeSession(w, isHost = true, myName = "Host", token = token,

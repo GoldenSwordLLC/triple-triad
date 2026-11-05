@@ -26,3 +26,10 @@ fun seedFromHex(hex: String): Long = java.lang.Long.parseUnsignedLong(hex.take(1
 
 fun randomHex(bytes: Int): String =
     ByteArray(bytes).also { kotlin.random.Random.nextBytes(it) }.joinToString("") { "%02x".format(it) }
+
+// A3: tokens and commit/reveal nonces must be unpredictable — kotlin.random is a
+// plain PRNG, and a peer who can predict a nonce can bias the shared seed (coin,
+// elementals, random hands). Gameplay rolls stay on randomHex for determinism.
+private val secureRandom = java.security.SecureRandom()
+fun secureHex(bytes: Int): String =
+    ByteArray(bytes).also { secureRandom.nextBytes(it) }.joinToString("") { "%02x".format(it) }

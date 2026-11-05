@@ -62,7 +62,7 @@ class TradeSession(
     fun accept() = scope.launch { mutex.withLock {
         // accept only what you can SEE: an accept registered before the peer's offer is
         // processed locally would be voided by that offer's arrival and deadlock both sides
-        if (myOffer.isEmpty() || peerOffer.isEmpty() || iAccepted) { println("ACC[$isHost] NO-OP"); return@launch }
+        if (myOffer.isEmpty() || peerOffer.isEmpty() || iAccepted) return@launch
         iAccepted = true
         send(Msg.FriendlyAccept)
         maybeResolve()

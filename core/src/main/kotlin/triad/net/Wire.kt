@@ -2,9 +2,8 @@ package triad.net
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import java.io.BufferedReader
+import java.io.BufferedInputStream
 import java.io.IOException
-import java.io.InputStreamReader
 import java.net.Socket
 
 interface Wire {
@@ -12,6 +11,41 @@ interface Wire {
     var onClose: (() -> Unit)?
     fun send(line: String)
     fun close()
+}
+
+const val MAX_LINE_BYTES = 128 * 1024
+
+/** Newline-framed line assembly with a hard cap. The largest legitimate message
+ *  (a full collection declaration) is a few tens of KB, so anything past the cap
+ *  is a hostile or broken peer: the wire must be killed, not the heap filled. */
+class LineAssembler(private val maxBytes: Int = MAX_LINE_BYTES) {
+    private val buf = java.io.ByteArrayOutputStream()
+
+    /** Feed raw bytes; complete lines go to [onLine]. False = a line exceeded the
+     *  cap — the caller should drop the connection. */
+    fun feed(bytes: ByteArray, onLine: (String) -> Unit): Boolean {
+        var start = 0
+        while (true) {
+            val nl = bytes.indexOfByte('\n'.code.toByte(), start)
+            if (nl < 0) break
+            if (buf.size() + (nl - start) > maxBytes) return false
+            buf.write(bytes, start, nl - start)
+            val line = buf.toString("UTF-8")
+            buf.reset()
+            if (line.isNotEmpty()) onLine(line)
+            start = nl + 1
+        }
+        if (start < bytes.size) {
+            if (buf.size() + (bytes.size - start) > maxBytes) return false
+            buf.write(bytes, start, bytes.size - start)
+        }
+        return true
+    }
+
+    private fun ByteArray.indexOfByte(b: Byte, from: Int): Int {
+        for (i in from until size) if (this[i] == b) return i
+        return -1
+    }
 }
 
 class TcpWire(private val socket: Socket, private val scope: CoroutineScope) : Wire {
@@ -39,10 +73,13 @@ class TcpWire(private val socket: Socket, private val scope: CoroutineScope) : W
         }
         scope.launch(Dispatchers.IO) {
             try {
-                val r = BufferedReader(InputStreamReader(socket.getInputStream()))
+                val inp = BufferedInputStream(socket.getInputStream())
+                val asm = LineAssembler()
+                val chunk = ByteArray(8192)
                 while (true) {
-                    val line = r.readLine() ?: break
-                    if (line.isNotEmpty()) deliver(line)
+                    val n = inp.read(chunk)
+                    if (n < 0) break
+                    if (!asm.feed(chunk.copyOf(n)) { deliver(it) }) break
                 }
             } catch (_: IOException) {}
             close()

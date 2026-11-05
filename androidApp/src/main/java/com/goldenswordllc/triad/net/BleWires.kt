@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Build
 import android.os.ParcelUuid
 import kotlinx.coroutines.*
+import triad.net.MAX_LINE_BYTES
 import java.util.UUID
 
 object BleIds {
@@ -133,6 +134,7 @@ class BleServerWire(private val context: Context, private val scope: CoroutineSc
 
     private fun receiveBytes(bytes: ByteArray) {
         rxBuf += bytes
+        if (rxBuf.size > MAX_LINE_BYTES) { fireClosed(); return }   // hostile peer: drop, don't OOM
         while (true) {
             val i = rxBuf.indexOf('\n'.code.toByte())
             if (i < 0) break
@@ -264,6 +266,7 @@ class BleClientWire(private val device: BluetoothDevice, private val scope: Coro
 
     private fun receiveBytes(bytes: ByteArray) {
         rxBuf += bytes
+        if (rxBuf.size > MAX_LINE_BYTES) { fireClosed(); return }   // hostile peer: drop, don't OOM
         while (true) {
             val i = rxBuf.indexOf('\n'.code.toByte())
             if (i < 0) break

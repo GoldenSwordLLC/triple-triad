@@ -173,6 +173,31 @@ class ProtocolLoopbackTest {
         assertTrue(joinerSide.outcomes.all { it is SessionEvent.Outcome.Lost }, "joiner=${joinerSide.outcomes}")
     }
 
+    @Test fun `an oversized line kills the wire instead of filling the heap`() = runBlocking {
+        val catalog = (1..10).map { i -> CardDef("c$i", "C$i", 1, Element.none, 6, 6, 6, 6) }
+            .associateBy { it.id }
+        val server = ServerSocket(0)
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val sockAsync = async(Dispatchers.IO) { server.accept() }
+        val client = Socket("127.0.0.1", server.localPort)
+        val hostSock = sockAsync.await()
+        server.close()
+
+        val session = P2pSession(TcpWire(hostSock, scope), isHost = true, myName = "H", token = "t",
+            catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.blue),
+            hostSettings = MatchSettings(trade = TradeRule.none))
+        val gone = CompletableDeferred<SessionEvent>()
+        val c = launch { session.eventsFlow.collect { if (it is SessionEvent.Disconnected) gone.complete(it) } }
+        session.start()
+
+        // 200 KB with no newline: the assembler must refuse it and drop the peer
+        val out = java.io.BufferedOutputStream(client.getOutputStream())
+        out.write(ByteArray(200_000) { 'x'.code.toByte() }); out.flush()
+        val e = withTimeout(10_000) { gone.await() }
+        c.cancel(); session.teardown(); runCatching { client.close() }
+        assertTrue(e is SessionEvent.Disconnected, "wire died: $e")
+    }
+
     @Test fun `a mid-match disconnect forfeits to the remaining player`() = runBlocking {
         val catalog = (1..10).map { i ->
             CardDef("c$i", "C$i", 1, Element.none, 6, 6, 6, 6)

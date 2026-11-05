@@ -5,8 +5,6 @@ import kotlinx.coroutines.channels.Channel
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
-import java.io.BufferedReader
-import java.io.InputStreamReader
 
 // relay control lines are '.'-prefixed; game traffic is JSON ('{'), so a peer
 // cannot forge an in-band control message (L4)
@@ -44,21 +42,29 @@ class RelayWire(socket: Socket, scope: CoroutineScope) : Wire {
             if (!closedFired) { closedFired = true; onClose?.invoke() }
         }
         scope.launch(Dispatchers.IO) {
+            var killedByControl = false
             try {
-                val r = BufferedReader(InputStreamReader(socket.getInputStream()))
+                val inp = java.io.BufferedInputStream(socket.getInputStream())
+                val asm = LineAssembler()
+                val chunk = ByteArray(8192)
                 while (true) {
-                    val line = r.readLine() ?: break
-                    if (line == PEER_GONE) { close(); break }
-                    if (line.startsWith(".PING ")) {
-                        val nonce = line.removePrefix(".PING ").trim()
-                        val signer = pongSigner
-                        if (signer != null) {
-                            val sig = signer(pingCode ?: "", nonce)
-                            send(".PONG $sig")
-                        }
-                        continue   // control line: never reaches the game session
-                    }
-                    if (line.isNotEmpty()) deliver(line)
+                    val n = inp.read(chunk)
+                    if (n < 0) break
+                    if (!asm.feed(chunk.copyOf(n)) { line ->
+                            when {
+                                line == PEER_GONE -> killedByControl = true
+                                line.startsWith(".PING ") -> {
+                                    val nonce = line.removePrefix(".PING ").trim()
+                                    val signer = pongSigner
+                                    if (signer != null) {
+                                        val sig = signer(pingCode ?: "", nonce)
+                                        send(".PONG $sig")
+                                    }
+                                }
+                                else -> deliver(line)   // game traffic flows verbatim
+                            }
+                        }) break
+                    if (killedByControl) break
                 }
             } catch (_: IOException) {}
             close()

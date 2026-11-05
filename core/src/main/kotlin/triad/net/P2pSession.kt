@@ -77,7 +77,7 @@ class P2pSession(
     private var me = me
     private var deckSent = false
 
-    private val myNonce = randomHex(16)
+    private val myNonce = secureHex(16)
     private var peerCommit: String? = null
     private var revealed = false
     private var seedHex = ""

@@ -57,6 +57,10 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
     // update check (public repo): latest release tag vs installed version, once per version
     var updateTag by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
+        // once a day, not on every menu compose (api.github.com rate limits to 60/hr)
+        val now = System.currentTimeMillis()
+        if (now - prefs.getLong("updateCheckedAt", 0L) < 24 * 3_600_000L) return@LaunchedEffect
+        prefs.edit().putLong("updateCheckedAt", now).apply()
         val latest = runCatching {
             val j = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 java.net.URL("https://api.github.com/repos/GoldenSwordLLC/triple-triad/releases/latest").readText()
