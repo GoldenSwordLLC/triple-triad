@@ -2,13 +2,15 @@
 
 Dual-native: Kotlin/Jetpack Compose (Android) + Swift/SwiftUI (iOS), two independent
 rule engines kept in lockstep by a shared JSON parity-test suite. P2P multiplayer
-(QR join over LAN TCP or Bluetooth LE) with no server. Single player vs AI with
-four tiers (Easy / Medium / Hard / Expert), a card collection economy, packs, and
-cross-phone trading.
+(QR join over LAN TCP or Bluetooth LE) with no server, plus online play at any
+distance through a private relay. Single player vs AI with four tiers (Easy /
+Medium / Hard / Expert — Expert remembers what beats you), a card collection
+economy, packs, cross-phone trading, and a standalone trade room.
 
 **Status: Android is playable end to end** (single player, pass & play, two-phone
-Wi-Fi and Bluetooth matches, collection/decks/packs/trading). The Swift core is
-portable and CI-tested; the SwiftUI app layer awaits its first compile.
+Wi-Fi and Bluetooth matches, online relay matches, collection/decks/packs,
+post-match and standalone trading). The Swift core passes its parity tests; the
+SwiftUI app layer awaits its first Xcode compile.
 
 ## Build
 
@@ -17,9 +19,10 @@ portable and CI-tested; the SwiftUI app layer awaits its first compile.
 ./gradlew :androidApp:assembleDebug   # debug APK
 ```
 
-APK lands in `androidApp/build/outputs/apk/debug/`. Release APKs are built by CI
-when a `v*` tag is pushed. The iOS package builds/tests on macOS:
-`cd ios/TriadCore && swift test`.
+APK lands in `androidApp/build/outputs/apk/debug/`. Signed release APKs are built
+locally and published on the [Releases](https://github.com/GoldenSwordLLC/triple-triad/releases)
+page; CI only runs the test suites. The iOS core also builds and tests on Linux
+(`cd ios/TriadCore && swift test`).
 
 ## Repo layout
 
@@ -30,7 +33,6 @@ when a `v*` tag is pushed. The iOS package builds/tests on macOS:
 | `ios/TriadCore/` | Swift engine mirror (parity-tested) |
 | `ios/TriadApp/` | SwiftUI app layer (pending first compile) |
 | `shared-data/` | JSON parity fixtures shared by both engines |
-| `design/` | Design mockups from the UI rounds |
 | `tools/` | Catalog build/audit scripts |
 
 ## Game rules (deliberate divergences from FF8)
@@ -49,6 +51,9 @@ when a `v*` tag is pushed. The iOS package builds/tests on macOS:
 - The hidden five (Doomtrain, Edea, Rinoa, Squall, Seifer) drop ONLY from Expert packs.
 - Two-phone matches trade cards by the host's chosen rule (None/One/Direct/Diff/All);
   entry requires ≥6 owned cards so a worst-case loss can never leave you deckless.
+- Standalone TRADE CARDS rooms (QR or room code, no match, no active deck needed)
+  swap offers freely on mutual accept; both sides enforce the 5-card floor, and
+  owned copies (×N) are visible in the collection and trade views.
 - Per-card drop rates are exact (computed from the pack draw structure) and shown in
   the Collection screen; a test cross-checks them against sampled packs.
 
@@ -61,9 +66,15 @@ Both phones derive identical match state from a shared seed:
 2. Shared seed = `SHA-256(hostNonce + joinerNonce)`; a fixed PRNG (`SplitMix64`)
    then deals random hands identically on both devices, and decides colors.
 3. Declared decks are validated peer-to-peer (size, known cards, single-instance).
-4. The transport seam (`Wire`) has three implementations: TCP over LAN Wi-Fi,
-   BLE GATT, and loopback for tests. Hosts advertise both radios; joiners try
-   TCP first (3s bound) and fall back to Bluetooth when off-network.
+4. The transport seam (`Wire`) has four implementations: TCP over LAN Wi-Fi,
+   BLE GATT, TLS to the online relay, and loopback for tests. Hosts advertise
+   both radios; joiners try TCP first (3s bound) and fall back to Bluetooth
+   when off-network.
+
+Hosts keep accepting connections until a peer proves the session token in their
+Hello (a port-scanner can't wedge hosting), and every transport caps line length
+at 128 KB so a hostile peer drops the connection instead of exhausting memory.
+Tokens and commit/reveal nonces come from a cryptographic RNG.
 
 Notable hardening baked into the session layer: outbound queues drain before socket
 close, the handshake is synchronous (Reveal can never overtake Commit), EOF is
@@ -75,11 +86,17 @@ on the opponent's turn.
 
 Two phones can also play through a relay: the host gets a short room code,
 the joiner types it, and both phones dial out, so it works behind any NAT.
-Neither player's IP is ever exposed to the other, and a mid-match
-disconnect awards the win to the remaining player.
+Neither player's IP is ever exposed to the other, and a mid-match disconnect
+awards the win to the remaining player. Room codes expire after 5 minutes.
+
+The connection is TLS-only with the certificate chain pinned to Let's Encrypt's
+root keys; the host signs its room with the device's ed25519 key (held in the
+Android Keystore where hardware allows) and answers signed heartbeats while the
+room waits. Online play is version-gated: the relay only accepts hosts and
+joiners on the newest published release, so opponents always share a build —
+old installs are told to update.
 
 The relay is private infrastructure and is not distributed in this repo.
-Operators configure its address in the app under Settings, ONLINE PLAY.
 
 ## Card art
 

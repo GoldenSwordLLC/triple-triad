@@ -30,3 +30,7 @@ relay_test.py
 relay.db
 *.db
 DEPLOY.md
+
+# Local-only
+local.properties
+design/
