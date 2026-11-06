@@ -36,6 +36,10 @@ val FrameBlue = Color(0xFF1565C0)
 private val FrameRed = Color(0xFFB71C1C)
 private val Gold = Color(0xFFD4AF37)
 private val GoldText = Color(0xFFFFF0C8)
+
+// update check runs at most once per app process (the menu re-composes often;
+// the network call must not)
+private var updateCheckedThisProcess = false
 private val SlotFill = Color(40, 28, 12).copy(alpha = 0.55f)
 private val SlotOutline = Color(120, 95, 50)
 private val CREAM = Color(245, 238, 220)
@@ -54,12 +58,16 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
     var askForDeck by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
 
-    // update check (public repo): latest release tag vs installed version, once per version
+    // update check (public repo): latest release tag vs installed version
     var updateTag by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        // once a day, not on every menu compose (api.github.com rate limits to 60/hr)
+        // once per app process and at most hourly across launches (api.github.com
+        // rate limits to 60/hr) — a daily throttle delayed release-day banners on
+        // old installs by up to 24h, defeating the point of the notification
+        if (updateCheckedThisProcess) return@LaunchedEffect
         val now = System.currentTimeMillis()
-        if (now - prefs.getLong("updateCheckedAt", 0L) < 24 * 3_600_000L) return@LaunchedEffect
+        if (now - prefs.getLong("updateCheckedAt", 0L) < 3_600_000L) return@LaunchedEffect
+        updateCheckedThisProcess = true
         prefs.edit().putLong("updateCheckedAt", now).apply()
         val latest = runCatching {
             val j = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
