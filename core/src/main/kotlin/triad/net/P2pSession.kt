@@ -38,7 +38,7 @@ sealed interface SessionEvent {
     data class VerifyDecks(val view: DeckVerificationView) : SessionEvent
     data class MatchStarted(val state: GameState, val myColor: Owner) : SessionEvent
     data class MoveApplied(val flips: List<Flip>, val state: GameState) : SessionEvent
-    data class RematchStarted(val state: GameState) : SessionEvent
+    data class RematchStarted(val state: GameState, val myColor: Owner) : SessionEvent
     sealed interface Outcome {
         data class Won(val transfers: List<CardTransfer>, val pendingPick: PendingPick?) : Outcome
         data object Lost : Outcome
@@ -267,7 +267,7 @@ class P2pSession(
         seed = seedFromHex(sha256Hex(seedHex + "#rematch#" + rematchCount))
         state = buildMatch()
         referee = DeckReferee(peerDeck!!.ids.groupingBy { it }.eachCount())
-        events.send(SessionEvent.RematchStarted(state!!))
+        events.send(SessionEvent.RematchStarted(state!!, myColor))
     }
 
     fun resign() = scope.launch { send(Msg.Resign); terminate(SessionEvent.Forfeit(myColor.other, "You resigned")) }

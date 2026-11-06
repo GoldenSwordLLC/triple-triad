@@ -35,10 +35,10 @@ class ProtocolLoopbackTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val settings = MatchSettings(trade = TradeRule.one)
         val host = P2pSession(TcpWire(hostSock, scope), isHost = true, myName = "Host", token = "tok1",
-            catalog = catalog, me = P2pSession.PlayerLocal(hostDeck, emptyList(), ColorPref.blue),
+            catalog = catalog, me = P2pSession.PlayerLocal(hostDeck, emptyList(), ColorPref.any),
             hostSettings = settings)
         val joiner = P2pSession(TcpWire(joinSock, scope), isHost = false, myName = "Joiner", token = "tok1",
-            catalog = catalog, me = P2pSession.PlayerLocal(joinDeck, emptyList(), ColorPref.red),
+            catalog = catalog, me = P2pSession.PlayerLocal(joinDeck, emptyList(), ColorPref.any),
             hostSettings = null)
 
         val failures = CopyOnWriteArrayList<SessionEvent>()
@@ -112,10 +112,10 @@ class ProtocolLoopbackTest {
 
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val host = P2pSession(TcpWire(hostSock, scope), isHost = true, myName = "Host", token = "tok1",
-            catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.blue),
+            catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.any),
             hostSettings = MatchSettings(trade = TradeRule.none))
         val joiner = P2pSession(TcpWire(joinSock, scope), isHost = false, myName = "Joiner", token = "tok1",
-            catalog = catalog, me = P2pSession.PlayerLocal((6..10).map { "c$it" }, emptyList(), ColorPref.red),
+            catalog = catalog, me = P2pSession.PlayerLocal((6..10).map { "c$it" }, emptyList(), ColorPref.any),
             hostSettings = null)
 
         val failures = CopyOnWriteArrayList<SessionEvent>()
@@ -139,7 +139,7 @@ class ProtocolLoopbackTest {
                 is SessionEvent.VerifyDecks -> side.s.ready()
                 is SessionEvent.MatchStarted -> { side.color = e.myColor; maybePlay(side, e.state) }
                 is SessionEvent.MoveApplied -> maybePlay(side, e.state)
-                is SessionEvent.RematchStarted -> { rematchStates.add(e.state); maybePlay(side, e.state) }
+                is SessionEvent.RematchStarted -> { side.color = e.myColor; rematchStates.add(e.state); maybePlay(side, e.state) }
                 is SessionEvent.GameOver -> {
                     side.outcomes.add(e.outcome)
                     side.gamesEnded++
@@ -209,10 +209,10 @@ class ProtocolLoopbackTest {
         server.close()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val host = P2pSession(TcpWire(hostSock, scope), isHost = true, myName = "Host", token = "tok1",
-            catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.blue),
+            catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.any),
             hostSettings = MatchSettings(trade = TradeRule.none))
         val joiner = P2pSession(TcpWire(joinSock, scope), isHost = false, myName = "Joiner", token = "tok1",
-            catalog = catalog, me = P2pSession.PlayerLocal((6..10).map { "c$it" }, emptyList(), ColorPref.red),
+            catalog = catalog, me = P2pSession.PlayerLocal((6..10).map { "c$it" }, emptyList(), ColorPref.any),
             hostSettings = null)
 
         val hostStarted = CompletableDeferred<Owner>()

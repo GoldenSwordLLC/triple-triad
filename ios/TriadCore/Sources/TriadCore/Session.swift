@@ -20,7 +20,7 @@ enum SessionEvent: Sendable {
     case verifyDecks(DeckVerificationView)
     case matchStarted(state: GameState, myColor: Owner)
     case moveApplied(flips: [Flip], state: GameState)
-    case rematchStarted(state: GameState)
+    case rematchStarted(state: GameState, myColor: Owner)
     case gameOver(outcome: Outcome)
     case tradeResolved(transfers: [CardTransfer])
     case forfeit(winner: Owner, reason: String)
@@ -325,7 +325,7 @@ actor P2pSession {
         seed = seedFromHex(sha256Hex(seedHex + "#rematch#" + String(rematchCount)))
         state = buildMatch()
         referee = DeckReferee(declared: Dictionary(grouping: peerDeck!.ids, by: { $0 }).mapValues(\.count))
-        eventsCont.yield(.rematchStarted(state: state!))
+        eventsCont.yield(.rematchStarted(state: state!, myColor: myColor))
     }
 
     public func resign() { send(.resign); terminate(.forfeit(winner: myColor.other, reason: "You resigned")) }

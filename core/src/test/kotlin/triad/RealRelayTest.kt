@@ -66,37 +66,37 @@ class RealRelayTest {
                 val (hostWire, code) = hostRelay("127.0.0.1", port, scope, triad.net.JcaRelayIdentity(), testVer)
                 assertTrue(Regex("^[2-9]{2}[A-HJ-KM-NP-Z]{2}[2-9]{2}$").matches(code), "code shape: $code")
                 val host = P2pSession(hostWire, isHost = true, myName = "Host", token = code,
-                    catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.blue),
+                    catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.any),
                     hostSettings = MatchSettings(trade = TradeRule.none))
 
                 val sloppy = code.lowercase().chunked(2).joinToString(" ")
                 val joinWire = joinRelay("127.0.0.1", port, sloppy, scope, testVer)
                 val joiner = P2pSession(joinWire, isHost = false, myName = "Joiner", token = code,
-                    catalog = catalog, me = P2pSession.PlayerLocal((6..10).map { "c$it" }, emptyList(), ColorPref.red),
+                    catalog = catalog, me = P2pSession.PlayerLocal((6..10).map { "c$it" }, emptyList(), ColorPref.any),
                     hostSettings = null)
 
-                var hostColor = Owner.blue
-                val hostOver = CompletableDeferred<SessionEvent.Outcome>()
-                val joinOver = CompletableDeferred<SessionEvent.Outcome>()
+                // online screens use ColorPref.any on both sides, so colors come from
+                // the per-game coin — every rematch re-coins them, and each side must
+                // follow ITS OWN color from the events or it plays the wrong hand
+                val hostOutcomes = java.util.concurrent.CopyOnWriteArrayList<SessionEvent.Outcome>()
+                val joinOutcomes = java.util.concurrent.CopyOnWriteArrayList<SessionEvent.Outcome>()
                 val gameFault = CompletableDeferred<String>()
 
-                fun drive(s: P2pSession, done: CompletableDeferred<SessionEvent.Outcome>, isHostSide: Boolean) {
+                fun drive(s: P2pSession, into: java.util.concurrent.CopyOnWriteArrayList<SessionEvent.Outcome>) {
+                    fun playFirst(st: GameState, mine: Owner) {
+                        if (!st.isOver && st.turn == mine)
+                            s.play(0, st.board.cells.indices.first { st.board[it].card == null })
+                    }
                     scope.launch {
+                        var mine = Owner.blue
                         s.eventsFlow.collect { e ->
                             when (e) {
                                 is SessionEvent.RulesProposed -> s.acceptRules()
                                 is SessionEvent.VerifyDecks -> s.ready()
-                                is SessionEvent.MatchStarted -> {
-                                    if (isHostSide) hostColor = e.myColor
-                                    if (!e.state.isOver && e.state.turn == e.myColor)
-                                        s.play(0, e.state.board.cells.indices.first { e.state.board[it].card == null })
-                                }
-                                is SessionEvent.MoveApplied -> {
-                                    val mine = if (isHostSide) hostColor else hostColor.other
-                                    if (!e.state.isOver && e.state.turn == mine)
-                                        s.play(0, e.state.board.cells.indices.first { e.state.board[it].card == null })
-                                }
-                                is SessionEvent.GameOver -> done.complete(e.outcome)
+                                is SessionEvent.MatchStarted -> { mine = e.myColor; playFirst(e.state, mine) }
+                                is SessionEvent.RematchStarted -> { mine = e.myColor; playFirst(e.state, mine) }
+                                is SessionEvent.MoveApplied -> playFirst(e.state, mine)
+                                is SessionEvent.GameOver -> into.add(e.outcome)
                                 is SessionEvent.ProtocolError -> gameFault.complete("${e.code} ${e.detail}")
                                 is SessionEvent.Disconnected -> gameFault.complete("disconnected")
                                 is SessionEvent.Forfeit -> gameFault.complete("forfeit")
@@ -104,22 +104,25 @@ class RealRelayTest {
                             } }
                     }
                 }
-                drive(host, hostOver, true)
-                drive(joiner, joinOver, false)
+                drive(host, hostOutcomes)
+                drive(joiner, joinOutcomes)
                 host.start(); joiner.start()
 
-                val outcome = withTimeoutOrNull(30_000) {
-                    while (!hostOver.isCompleted && !joinOver.isCompleted && !gameFault.isCompleted) delay(100)
-                    val h = if (hostOver.isCompleted) hostOver.await() else null
-                    val j = if (joinOver.isCompleted) joinOver.await() else null
-                    when {
-                        gameFault.isCompleted -> "FAULT: ${gameFault.await()}"
-                        else -> "DONE host=${h?.javaClass?.simpleName} joiner=${j?.javaClass?.simpleName}"
-                    }
+                suspend fun waitGames(n: Int) = withTimeoutOrNull(30_000) {
+                    while ((hostOutcomes.size < n || joinOutcomes.size < n) && !gameFault.isCompleted) delay(100)
                 }
-                assertNotNull(outcome, "GAME FROZE mid-match against the real relay (30s, no outcome, no fault)")
-                println("OUTCOME: $outcome")
-                assertTrue(!outcome.startsWith("FAULT"), outcome)
+                assertNotNull(waitGames(1), "GAME 1 FROZE against the real relay (30s, no outcome, no fault)")
+                if (gameFault.isCompleted) fail("GAME 1 FAULT: ${gameFault.getCompleted()}")
+
+                // the button press — game 2 must run to an agreed outcome through the
+                // relay, with the freshly-coined colors
+                host.rematch()
+                assertNotNull(waitGames(2), "REMATCH FROZE against the real relay (30s)")
+                if (gameFault.isCompleted) fail("REMATCH FAULT: ${gameFault.getCompleted()}")
+                assertEquals(2, hostOutcomes.size)
+                assertEquals(2, joinOutcomes.size)
+                assertTrue(hostOutcomes.all { it is SessionEvent.Outcome.Won }, "host=${hostOutcomes}")
+                assertTrue(joinOutcomes.all { it is SessionEvent.Outcome.Lost }, "joiner=${joinOutcomes}")
 
                 val hostClosed = CountDownLatch(1)
                 hostWire.onClose = { hostClosed.countDown() }

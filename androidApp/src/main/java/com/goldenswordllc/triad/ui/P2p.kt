@@ -522,7 +522,12 @@ class P2pMatchViewModel(
                 when (e) {
                     is SessionEvent.MatchStarted -> { state = e.state; myColor = e.myColor }
                     is SessionEvent.MoveApplied -> { state = e.state; lastFlips = e.flips }
-                    is SessionEvent.RematchStarted -> { state = e.state; result = null; lastFlips = emptyList() }
+                    // the rematch re-coins colors (both sides default to ColorPref.any),
+                    // so the fresh myColor must replace the stale one or the UI plays
+                    // the wrong hand
+                    is SessionEvent.RematchStarted -> {
+                        state = e.state; myColor = e.myColor; result = null; lastFlips = emptyList()
+                    }
                     is SessionEvent.GameOver -> {
                         // under a pick-based trade rule the loser sits waiting while the
                         // winner picks — block rematch + show that state
