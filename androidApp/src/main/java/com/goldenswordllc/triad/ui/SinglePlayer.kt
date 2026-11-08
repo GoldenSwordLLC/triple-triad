@@ -347,8 +347,16 @@ class SPGameViewModel(
             (if (turn == Owner.blue) "BLUE GOES FIRST" else "RED GOES FIRST")
         else null
         generation++
+        // elemental from Medium up: each cell has a 1-in-5 roll (same rate as
+        // matchmaking), which devalues pure stat walls — a mismatched element sits
+        // at −1 per side. Easy and pass & play stay on plain boards.
+        val elemental = difficulty == "medium" || difficulty == "hard" || difficulty == "expert"
         return GameState(
-            board = Board(List(9) { Cell() }),
+            board = Board(List(9) {
+                if (elemental && (0..4).random() == 0)
+                    Cell(element = Element.entries[(1..9).random()])
+                else Cell()
+            }),
             blueHand = myDeck.shuffled(),
             redHand = when {
                 difficulty == "expert" -> counterDeck()
@@ -356,7 +364,7 @@ class SPGameViewModel(
                 else -> sample(aiRange)
             },
             turn = turn,
-            rules = Rules(),
+            rules = if (elemental) Rules(elemental = true) else Rules(),
         )
     }
 
