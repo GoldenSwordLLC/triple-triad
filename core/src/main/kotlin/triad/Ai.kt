@@ -72,26 +72,41 @@ object Ai {
 
     fun evaluate(state: GameState, me: Owner, threats: Set<String> = emptySet(), threatBonus: Int = 60): Int {
         var score = (state.score(me) - state.score(me.other)) * 10
+        val oppHand = state.hand(me.other)
+        val elemental = state.rules.elemental
         for (i in state.board.cells.indices) {
             val cell = state.board[i]; val card = cell.card ?: continue
             if (card.owner == me && card.def.id in threats) score += threatBonus
             var exposure = 0
+            var openSides = 0
+            var safe = true
             for (side in Side.entries) {
                 val n = Engine.neighborIndex(i, side) ?: continue
-                if (state.board[n].card == null)
-                    exposure += 10 - Engine.effectiveValue(card.def, side, cell.element, state.rules.elemental)
+                if (state.board[n].card != null) continue
+                openSides++
+                val v = Engine.effectiveValue(card.def, side, cell.element, elemental)
+                exposure += 10 - v
+                // a card can only ever be attacked through a side that is open NOW;
+                // if no remaining opponent card beats any open side, this card is
+                // locked in for good — the core endgame concept the raw score misses
+                if (oppHand.any { o -> o.rank(side.opposite()) > v }) safe = false
             }
+            if (openSides > 0 && safe) score += if (card.owner == me) 45 else -45
             score += if (card.owner == me) -exposure else exposure
         }
         return score
     }
 
+    private fun Side.opposite(): Side = Side.entries[(ordinal + 2) % 4]
+
+    // Expert is the top tier: real pressure on win streaks, and far less mercy on
+    // losing ones (a soft Expert is an Expert nobody respects)
     fun expertBudget(streak: Int): Long = when {
-        streak >= 3 -> 2200L
-        streak >= 2 -> 1700L
-        streak <= -3 -> 800L
-        streak <= -2 -> 1000L
-        else -> 1400L
+        streak >= 3 -> 3000L
+        streak >= 2 -> 2200L
+        streak <= -3 -> 1100L
+        streak <= -2 -> 1300L
+        else -> 1600L
     }
 
     /** Curated AI hand: the strongest distinct cards in [pool], balanced (a card with

@@ -83,4 +83,21 @@ class AiTest {
         }
         assertTrue(wins >= 8, "medium beat easy only $wins/10 with equal decks")
     }
+
+    @Test fun `a card no remaining card can flip is locked in and scores higher`() {
+        val wall = CardDef("wall", "W", 1, Element.none, 6, 6, 6, 6)
+        val filler = (1..4).map { i -> CardDef("b$i", "B$i", 1, Element.none, 1, 1, 1, 1) }
+        val weakRed = (1..5).map { i -> CardDef("r$i", "R$i", 1, Element.none, 5, 5, 5, 5) }
+        val strongRed = (1..4).map { i -> CardDef("s$i", "S$i", 1, Element.none, 5, 5, 5, 5) } +
+            CardDef("s9", "S9", 1, Element.none, 9, 9, 9, 9)
+        val base = GameState(board = Board(List(9) { Cell() }),
+            blueHand = listOf(wall) + filler, redHand = weakRed, turn = Owner.blue)
+        val corner = Engine.place(base, 0, 0).state   // wall in the corner, red to move
+
+        // identical board, identical blue hand: only the red hand differs, so the
+        // eval gap is exactly the lock bonus and nothing else
+        val locked = Ai.evaluate(corner, Owner.blue)
+        val flippable = Ai.evaluate(corner.copy(redHand = strongRed), Owner.blue)
+        assertEquals(45, locked - flippable)
+    }
 }

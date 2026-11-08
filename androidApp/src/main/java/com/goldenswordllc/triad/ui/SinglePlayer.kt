@@ -365,13 +365,19 @@ class SPGameViewModel(
         fun opp(s: Side) = sides[(s.ordinal + 2) % 4]
         val pool = catalog.values.filter { it.level >= 8 }.toMutableList()
         return myDeck.map { p ->
+            // cards clash across SHARED EDGES: my side s faces their opp(s). The old
+            // formula ranked same-side comparisons (which never meet) highest, so the
+            // "counter" deck was mostly noise. v2 scores what actually happens:
+            // can I capture p, can p capture me, and raw power as a quality floor so
+            // pure-counter picks can't sneak weak cards in.
             val pick = pool.maxByOrNull { c ->
-                sides.count { s -> c.rank(s) > p.rank(s) } * 100 +
-                    sides.count { s -> c.rank(s) >= p.rank(opp(s)) } * 40 +
-                    sides.sumOf { s -> c.rank(s) - p.rank(s) } +
-                    beatenCards.sumOf { b ->
-                        sides.count { s -> c.rank(s) > b.rank(opp(s)) } * 60
-                    }
+                val capture = sides.count { s -> c.rank(s) > p.rank(opp(s)) } * 100
+                val resist = sides.count { s -> c.rank(opp(s)) >= p.rank(s) } * 60
+                val power = sides.sumOf { c.rank(it) } * 3
+                val memory = beatenCards.sumOf { b ->
+                    sides.count { s -> c.rank(s) > b.rank(opp(s)) } * 40
+                }
+                capture + resist + power + memory
             } ?: catalog.values.random()
             pool.remove(pick)
             pick
