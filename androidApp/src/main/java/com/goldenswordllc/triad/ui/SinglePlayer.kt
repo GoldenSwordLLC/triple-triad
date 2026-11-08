@@ -334,7 +334,14 @@ class SPGameViewModel(
         val byLevel = catalog.values
             .filter { difficulty == "expert" || it.id !in triad.core.EXPERT_EXCLUSIVES }
             .groupBy { it.level }
-        fun sample(range: IntRange): List<CardDef> = List(5) { byLevel.getValue(range.random()).random() }
+        fun sample(range: IntRange): List<CardDef> {
+            val pool = byLevel.filterKeys { it in range }.values.flatten()
+            // easy stays the tutorial tier (random, but no duplicate cards); medium
+            // and hard bring CURATED decks — random hands made them pushovers no
+            // matter how well they played
+            return if (difficulty == "easy") pool.shuffled().take(5)
+            else Ai.bestHand(pool)
+        }
         val turn = if ((0..1).random() == 0) Owner.blue else Owner.red
         coinText = if (passAndPlay)
             (if (turn == Owner.blue) "BLUE GOES FIRST" else "RED GOES FIRST")
@@ -410,7 +417,7 @@ class SPGameViewModel(
                 val move = try {
                     when (difficulty) {
                         "easy" -> Ai.easy(snapshot)
-                        "hard" -> Ai.hard(snapshot, budgetMs = 900)
+                        "hard" -> Ai.hard(snapshot, budgetMs = 1400)
 
                         "expert" -> Ai.hard(snapshot, budgetMs = aiBudgetMs, threats = threats)
                         else -> Ai.medium(snapshot)

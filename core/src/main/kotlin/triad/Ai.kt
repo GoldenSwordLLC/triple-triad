@@ -12,10 +12,11 @@ object Ai {
 
     fun easy(state: GameState, rng: Random = Random.Default): Move = legalMoves(state).random(rng)
 
-    fun medium(state: GameState): Move =
-        legalMoves(state).maxByOrNull { evaluate(Engine.place(state, it.cardIndex, it.cellIndex).state, state.turn) }!!
+    // 1-ply greedy could not see the player's reply at all; two plies (my best move,
+    // your best answer) is the smallest search that doesn't hand cards back for free
+    fun medium(state: GameState): Move = hard(state, budgetMs = 250, maxDepth = 2)
 
-    fun hard(state: GameState, budgetMs: Long = 900,
+    fun hard(state: GameState, budgetMs: Long = 900, maxDepth: Int = 99,
              threats: Set<String> = emptySet(), threatBonus: Int = 60): Move {
         val deadline = System.nanoTime() + budgetMs * 1_000_000
         val root = legalMoves(state)
@@ -23,7 +24,7 @@ object Ai {
         var best = root.first()
         var depth = 2
         try {
-            while (depth <= 9) {
+            while (depth <= 9 && depth <= maxDepth) {
                 var alpha = Int.MIN_VALUE + 1
                 var bestAtDepth = best
                 val ordered = root.map { m -> m to Engine.place(state, m.cardIndex, m.cellIndex) }
@@ -86,11 +87,23 @@ object Ai {
     }
 
     fun expertBudget(streak: Int): Long = when {
-        streak >= 3 -> 1800L
-        streak >= 2 -> 1400L
-        streak <= -3 -> 500L
-        streak <= -2 -> 700L
-        else -> 1100L
+        streak >= 3 -> 2200L
+        streak >= 2 -> 1700L
+        streak <= -3 -> 800L
+        streak <= -2 -> 1000L
+        else -> 1400L
+    }
+
+    /** Curated AI hand: the strongest distinct cards in [pool], balanced (a card with
+     *  one soft side is a liability, so the lowest side is weighted), drawn from the
+     *  top candidates with a shuffle so repeat matches aren't identical. Random
+     *  hands made every tier below Expert a pushover regardless of search quality. */
+    fun bestHand(pool: List<CardDef>, n: Int = 5, rng: Random = Random.Default): List<CardDef> {
+        fun strength(c: CardDef) =
+            c.top + c.right + c.bottom + c.left + 3 * minOf(c.top, c.right, c.bottom, c.left)
+        val ranked = pool.distinctBy { it.id }.sortedByDescending(::strength)
+        if (ranked.size <= n) return ranked.take(n).shuffled(rng)
+        return ranked.take(n + 3).shuffled(rng).take(n)
     }
 }
 

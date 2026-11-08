@@ -64,13 +64,13 @@ class MemoryTest {
     }
 
     @Test fun `expert effort scales with the streak`() {
-        assertEquals(1800L, Ai.expertBudget(5))
-        assertEquals(1400L, Ai.expertBudget(2))
-        assertEquals(1100L, Ai.expertBudget(1))
-        assertEquals(1100L, Ai.expertBudget(0))
-        assertEquals(1100L, Ai.expertBudget(-1))
-        assertEquals(700L, Ai.expertBudget(-2))
-        assertEquals(500L, Ai.expertBudget(-4))
+        assertEquals(2200L, Ai.expertBudget(5))
+        assertEquals(1700L, Ai.expertBudget(2))
+        assertEquals(1400L, Ai.expertBudget(1))
+        assertEquals(1400L, Ai.expertBudget(0))
+        assertEquals(1400L, Ai.expertBudget(-1))
+        assertEquals(1000L, Ai.expertBudget(-2))
+        assertEquals(800L, Ai.expertBudget(-4))
     }
 
     @Test fun `expert prefers the move that captures a marked card`() {
