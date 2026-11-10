@@ -334,29 +334,14 @@ class SPGameViewModel(
         val byLevel = catalog.values
             .filter { difficulty == "expert" || it.id !in triad.core.EXPERT_EXCLUSIVES }
             .groupBy { it.level }
-        fun sample(range: IntRange): List<CardDef> {
-            val pool = byLevel.filterKeys { it in range }.values.flatten()
-            // easy stays the tutorial tier (random, but no duplicate cards); medium
-            // and hard bring CURATED decks — random hands made them pushovers no
-            // matter how well they played
-            return if (difficulty == "easy") pool.shuffled().take(5)
-            else Ai.bestHand(pool)
-        }
+        fun sample(range: IntRange): List<CardDef> = List(5) { byLevel.getValue(range.random()).random() }
         val turn = if ((0..1).random() == 0) Owner.blue else Owner.red
         coinText = if (passAndPlay)
             (if (turn == Owner.blue) "BLUE GOES FIRST" else "RED GOES FIRST")
         else null
         generation++
-        // elemental from Medium up: each cell has a 1-in-5 roll (same rate as
-        // matchmaking), which devalues pure stat walls — a mismatched element sits
-        // at −1 per side. Easy and pass & play stay on plain boards.
-        val elemental = difficulty == "medium" || difficulty == "hard" || difficulty == "expert"
         return GameState(
-            board = Board(List(9) {
-                if (elemental && (0..4).random() == 0)
-                    Cell(element = Element.entries[(1..9).random()])
-                else Cell()
-            }),
+            board = Board(List(9) { Cell() }),
             blueHand = myDeck.shuffled(),
             redHand = when {
                 difficulty == "expert" -> counterDeck()
@@ -364,7 +349,7 @@ class SPGameViewModel(
                 else -> sample(aiRange)
             },
             turn = turn,
-            rules = if (elemental) Rules(elemental = true) else Rules(),
+            rules = Rules(),
         )
     }
 
@@ -373,19 +358,13 @@ class SPGameViewModel(
         fun opp(s: Side) = sides[(s.ordinal + 2) % 4]
         val pool = catalog.values.filter { it.level >= 8 }.toMutableList()
         return myDeck.map { p ->
-            // cards clash across SHARED EDGES: my side s faces their opp(s). The old
-            // formula ranked same-side comparisons (which never meet) highest, so the
-            // "counter" deck was mostly noise. v2 scores what actually happens:
-            // can I capture p, can p capture me, and raw power as a quality floor so
-            // pure-counter picks can't sneak weak cards in.
             val pick = pool.maxByOrNull { c ->
-                val capture = sides.count { s -> c.rank(s) > p.rank(opp(s)) } * 100
-                val resist = sides.count { s -> c.rank(opp(s)) >= p.rank(s) } * 60
-                val power = sides.sumOf { c.rank(it) } * 3
-                val memory = beatenCards.sumOf { b ->
-                    sides.count { s -> c.rank(s) > b.rank(opp(s)) } * 40
-                }
-                capture + resist + power + memory
+                sides.count { s -> c.rank(s) > p.rank(s) } * 100 +
+                    sides.count { s -> c.rank(s) >= p.rank(opp(s)) } * 40 +
+                    sides.sumOf { s -> c.rank(s) - p.rank(s) } +
+                    beatenCards.sumOf { b ->
+                        sides.count { s -> c.rank(s) > b.rank(opp(s)) } * 60
+                    }
             } ?: catalog.values.random()
             pool.remove(pick)
             pick
@@ -431,7 +410,7 @@ class SPGameViewModel(
                 val move = try {
                     when (difficulty) {
                         "easy" -> Ai.easy(snapshot)
-                        "hard" -> Ai.hard(snapshot, budgetMs = 1400)
+                        "hard" -> Ai.hard(snapshot, budgetMs = 900)
 
                         "expert" -> Ai.hard(snapshot, budgetMs = aiBudgetMs, threats = threats)
                         else -> Ai.medium(snapshot)

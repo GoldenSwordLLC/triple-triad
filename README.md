@@ -42,9 +42,6 @@ page; CI only runs the test suites. The iOS core also builds and tests on Linux
 - **Single-instance decks.** A deck may contain each card at most once, regardless
   of owned copies.
 - **Decks are 5 cards.** The deck you bring is the hand you play.
-- **Elemental from Medium up.** Each cell has a 1-in-5 element roll: a card on a
-  matching element gets +1 per side, a mismatch −1 (Easy and pass & play are
-  plain boards).
 
 ## Collection economy
 
