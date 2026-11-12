@@ -22,6 +22,7 @@ import triad.core.addCards
 import triad.core.applyTransfers
 import triad.core.expertThreats
 import triad.core.withGameMemory
+import triad.core.Campaign
 import triad.core.Owner
 import triad.core.PlayerSave
 import triad.core.withRecord
@@ -45,6 +46,7 @@ import com.goldenswordllc.triad.ui.RELAY_PORT
 import com.goldenswordllc.triad.ui.OnlineJoinScreen
 
 import com.goldenswordllc.triad.ui.DeckManagerScreen
+import com.goldenswordllc.triad.ui.CampaignVersusScreen
 import com.goldenswordllc.triad.ui.MenuScreen
 import com.goldenswordllc.triad.ui.MultiplayerScreen
 import com.goldenswordllc.triad.ui.P2pMatchScreen
@@ -105,6 +107,7 @@ private sealed interface Screen {
     data object Decks : Screen
     data object Multiplayer : Screen
     data class Game(val difficulty: String, val redDeck: List<CardDef>? = null) : Screen
+    data class Versus(val chapter: Int) : Screen
     data class PassRedPick(val blueDeck: List<CardDef>) : Screen
     data object Collection : Screen
     data object PackClaim : Screen
@@ -213,12 +216,10 @@ class MainActivity : ComponentActivity() {
                         MenuScreen(
                             record = save.value,
                             hasValidDeck = hasValidDeck,
-                            catalog = catalog,
-                            onUpdateCards = { cards ->
-                                save.value = save.value.addCards(cards)
-                                persist(this@MainActivity, save.value)
+                            onStart = { tier ->
+                                if (tier.startsWith("c:")) screen = Screen.Versus(tier.substringAfter("c:").toInt())
+                                else gatePack { screen = Screen.Game(tier) }
                             },
-                            onStart = { tier -> gatePack { screen = Screen.Game(tier) } },
                             onTutorial = { screen = Screen.Tutorial },
                             onSettings = { screen = Screen.Settings },
                             onDecks = { screen = Screen.Decks },
@@ -365,7 +366,39 @@ class MainActivity : ComponentActivity() {
                         )
                     Screen.Credits ->
                         CreditsScreen(catalog = catalog, onBack = { screen = Screen.Settings })
+                    is Screen.Versus ->
+                        CampaignVersusScreen(
+                            catalog = catalog,
+                            chapter = s.chapter,
+                            onFight = { screen = Screen.Game("c:${s.chapter}") },
+                            onExit = { screen = Screen.Menu },
+                        )
                     is Screen.Game -> {
+                        if (s.difficulty.startsWith("c:")) {
+                            val ch = s.difficulty.substringAfter("c:").toInt()
+                            val opp = Campaign.OPPONENTS[ch - 1]
+                            val blueDeck = remember { battleDeck(save.value, catalog) }
+                            SinglePlayerScreen(
+                                catalog = catalog,
+                                difficulty = "campaign",
+                                myDeck = blueDeck,
+                                campaign = opp,
+                                aiBudgetMs = opp.aiBudgetMs,
+                                onRecord = { won, _ ->
+                                    if (won) {
+                                        save.value = if (ch > save.value.campaignChapter) {
+                                            val withCards = save.value.addCards(opp.rewardIds.mapNotNull { catalog[it] })
+                                            withCards.copy(campaignChapter = ch, wins = withCards.wins + 1)
+                                        } else save.value.copy(wins = save.value.wins + 1)
+                                        persist(this@MainActivity, save.value)
+                                    } else {
+                                        save.value = save.value.copy(losses = save.value.losses + 1)
+                                        persist(this@MainActivity, save.value)
+                                    }
+                                },
+                                onExit = { screen = Screen.Menu },
+                            )
+                        } else {
 
                         val blueDeck = remember { battleDeck(save.value, catalog) }
                         if (s.difficulty != "pass") {
@@ -413,6 +446,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onExit = { screen = Screen.Menu },
                         )
+                        }
                     }
                     Screen.Host ->
                         HostLobbyScreen(

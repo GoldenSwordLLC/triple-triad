@@ -1,6 +1,7 @@
 package com.goldenswordllc.triad.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.animation.core.animateFloatAsState
 import android.content.Context
 import androidx.compose.foundation.background
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -46,15 +48,10 @@ private val CREAM = Color(245, 238, 220)
 
 @Composable
 fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
-               catalog: Map<String, CardDef> = emptyMap(),
-               onUpdateCards: (List<CardDef>) -> Unit = {},
                onStart: (String) -> Unit, onTutorial: () -> Unit,
                onSettings: () -> Unit, onDecks: () -> Unit, onMultiplayer: () -> Unit) {
 
     val prefs = LocalContext.current.getSharedPreferences("triad", android.content.Context.MODE_PRIVATE)
-    var difficulty by remember { mutableStateOf(prefs.getString("difficulty", "easy") ?: "easy") }
-
-    val expertUnlocked = prefs.getInt("hardWins", 0) >= 3
     var askForDeck by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
 
@@ -91,46 +88,12 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
         }
     }
 
-    // one-time shake reward: a random 4-card pack, once per install.
-    // `claimed` is observable so the moment it flips, this effect disposes and the
-    // sensor listener is UNREGISTERED — after the pack, the sensor is never touched again
-    var shakePack by remember { mutableStateOf<List<CardDef>?>(null) }
-    var claimed by remember { mutableStateOf(prefs.getBoolean("shakePackClaimed", false)) }
-    val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    DisposableEffect(claimed) {
-        val sm = ctx.getSystemService(android.content.Context.SENSOR_SERVICE)
-                as android.hardware.SensorManager
-        val accel = sm.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER)
-        var last = 0L
-        val rl = object : android.hardware.SensorEventListener {
-            override fun onSensorChanged(e: android.hardware.SensorEvent) {
-                // sensor callbacks run on a BACKGROUND thread: touch no compose state
-                // here — compute, then hop to the main thread to update it
-                if (claimed) return
-                val mag = kotlin.math.sqrt(
-                    e.values[0] * e.values[0] + e.values[1] * e.values[1] + e.values[2] * e.values[2])
-                val now = System.currentTimeMillis()
-                if (mag > 45 && now - last > 1200) {
-                    last = now
-                    val cards = catalog.values
-                        .filter { it.id !in triad.core.EXPERT_EXCLUSIVES }
-                        .shuffled().take(4)
-                    mainHandler.post { if (shakePack == null) shakePack = cards }
-                }
-            }
-            override fun onAccuracyChanged(s: android.hardware.Sensor?, a: Int) {}
-        }
-        if (!claimed) {
-            // GAME rate (~50 Hz): shake peaks are transient and NORMAL's ~5 Hz
-            // sampling simply never catches them
-            sm.registerListener(rl, accel, android.hardware.SensorManager.SENSOR_DELAY_GAME)
-        }
-        onDispose { sm.unregisterListener(rl) }
-    }
+    val cleared = record.campaignChapter >= Campaign.OPPONENTS.size
+    val next = Campaign.OPPONENTS[record.campaignChapter.coerceIn(0, Campaign.OPPONENTS.size - 1)]
     if (askForDeck && !hasValidDeck) {
         NoDeckDialog(
             onBuild = { askForDeck = false; onDecks() },
-            onPlayAnyway = { askForDeck = false; onStart(difficulty) },
+            onPlayAnyway = { askForDeck = false; onStart("c:${next.chapter}") },
             onDismiss = { askForDeck = false },
         )
     }
@@ -175,36 +138,13 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
                 }
                 Spacer(Modifier.height(8.dp))
             }
-            Text("SINGLE PLAYER", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("THE CARD CIRCUIT", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                (listOf("easy", "medium", "hard") + if (expertUnlocked) listOf("expert") else emptyList()).forEach { diff ->
-                    val sel = difficulty == diff
-
-                    Box(Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (sel) Gold else Color(30, 22, 8).copy(alpha = 0.85f))
-                        .border(
-                            if (sel) 2.dp else 1.dp,
-                            if (sel) Gold else Gold.copy(alpha = 0.85f),
-                            RoundedCornerShape(10.dp))
-                        .clickable {
-                            difficulty = diff
-                            prefs.edit().putString("difficulty", diff).apply()
-                        }
-                        .padding(horizontal = 18.dp, vertical = 10.dp)) {
-                        Text(diff.uppercase(),
-                             color = if (sel) Color(55, 38, 10) else GoldText,
-                             fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            if (!expertUnlocked) {
-                Text("Beat HARD 3 times to unlock EXPERT", color = Color(190, 175, 145), fontSize = 10.sp)
-            }
-            Spacer(Modifier.height(10.dp))
-            GoldButton("PLAY  ▶", filled = true) {
-                if (hasValidDeck) onStart(difficulty) else askForDeck = true
+            GoldButton(if (cleared) "FREE PLAY  ▶" else "PLAY  ▶",
+                       sub = if (cleared) "circuit complete · challenge the Monarch again"
+                             else "chapter ${next.chapter} of 16 · ${next.name}, ${next.epithet}",
+                       filled = true) {
+                if (hasValidDeck) onStart("c:${next.chapter}") else askForDeck = true
             }
             GoldButton("DECKS", sub = "manage your collection") { onDecks() }
             GoldButton("MULTIPLAYER", sub = "pass & play · host · join") { onMultiplayer() }
@@ -225,16 +165,6 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
         }
     }
 
-    // pack overlay must compose AFTER the menu Box so it paints ON TOP of it
-    // (the original placement rendered it underneath — trigger fired, screen invisible)
-    shakePack?.let { cards ->
-        PackScreen(cards = cards) {
-            onUpdateCards(cards)
-            prefs.edit().putBoolean("shakePackClaimed", true).apply()
-            claimed = true          // flips the effect key -> dispose -> sensor off
-            shakePack = null
-        }
-    }
 
 }
 
@@ -290,7 +220,8 @@ class SPGameViewModel(
     private val catalog: Map<String, CardDef>,
     private val difficulty: String,
     private val myDeck: List<CardDef>,
-    private val redDeck: List<CardDef>? = null,
+    val redDeck: List<CardDef>? = null,
+    val campaign: Campaign.Opponent? = null,
     private val threats: Set<String> = emptySet(),
     private val beatenCards: List<CardDef> = emptyList(),
     private val aiBudgetMs: Long = 900L,
@@ -331,6 +262,11 @@ class SPGameViewModel(
     }
 
     private fun newGame(): GameState {
+        if (campaign != null) {
+            generation++
+            coinText = null
+            return Campaign.campaignState(campaign, catalog, myDeck, seed = System.nanoTime())
+        }
         val byLevel = catalog.values
             .filter { difficulty == "expert" || it.id !in triad.core.EXPERT_EXCLUSIVES }
             .groupBy { it.level }
@@ -412,6 +348,7 @@ class SPGameViewModel(
                         "easy" -> Ai.easy(snapshot)
                         "hard" -> Ai.hard(snapshot, budgetMs = 900)
 
+                        "campaign" -> Ai.hard(snapshot, budgetMs = aiBudgetMs)
                         "expert" -> Ai.hard(snapshot, budgetMs = aiBudgetMs, threats = threats)
                         else -> Ai.medium(snapshot)
                     }
@@ -456,6 +393,7 @@ fun SinglePlayerScreen(
     difficulty: String,
     myDeck: List<CardDef>,
     redDeck: List<CardDef>? = null,
+    campaign: Campaign.Opponent? = null,
     threats: Set<String> = emptySet(),
     beatenCards: List<CardDef> = emptyList(),
     aiBudgetMs: Long = 900L,
@@ -470,8 +408,8 @@ fun SinglePlayerScreen(
     val sittingThreats = remember { threats }
     val sittingBeaten = remember { beatenCards }
     val sittingBudget = remember { aiBudgetMs }
-    val vm = remember(catalog, difficulty, myDeck, redDeck) {
-        SPGameViewModel(catalog, difficulty, myDeck, redDeck, sittingThreats, sittingBeaten, sittingBudget,
+    val vm = remember(catalog, difficulty, myDeck, redDeck, campaign) {
+        SPGameViewModel(catalog, difficulty, myDeck, redDeck, campaign, sittingThreats, sittingBeaten, sittingBudget,
                         { won, drawn -> onRecord(won, drawn) }, onMemory)
     }
     var packClaimed by remember(vm.generation) { mutableStateOf(false) }
@@ -591,8 +529,22 @@ fun SinglePlayerScreen(
                     Text(label, color = color, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Text("$blue - $red", color = Color(230, 205, 160), fontSize = 14.sp)
+                    if (campaign != null && blue > red) {
+                        Spacer(Modifier.height(12.dp))
+                        Text("FIRST-CLEAR REWARD", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            campaign.rewardIds.forEach { id ->
+                                catalog[id]?.let {
+                                    CardThumb(it, conflict = false, owner = Owner.blue,
+                                              modifier = Modifier.width(64.dp).height(90.dp))
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
                     Spacer(Modifier.height(20.dp))
-                    if (blue > red && difficulty != "pass") {
+                    if (blue > red && difficulty != "pass" && difficulty != "campaign") {
                         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                                 .background(if (packClaimed) Color(40, 30, 14) else Color(46, 125, 50))
                                 .border(2.dp, Color(0xFFD4AF37), RoundedCornerShape(12.dp))
@@ -830,5 +782,66 @@ fun GameMenuItem(text: String, destructive: Boolean = false, onClick: () -> Unit
         contentAlignment = Alignment.Center) {
         Text(text, color = if (destructive) Color(255, 150, 130) else Color(255, 240, 200),
              fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+
+@Composable
+fun CampaignVersusScreen(catalog: Map<String, CardDef>, chapter: Int,
+                         onFight: () -> Unit, onExit: () -> Unit) {
+    val opp = Campaign.OPPONENTS[chapter - 1]
+    val ctx = LocalContext.current
+    var portrait by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(chapter) {
+        portrait = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                android.graphics.BitmapFactory.decodeStream(ctx.assets.open("art/cast/%02d.png".format(chapter)))
+            }.getOrNull()
+        }
+    }
+    val ruleNames = buildList {
+        if (opp.same) add("SAME"); if (opp.plus) add("PLUS")
+        if (opp.sameWall) add("SAME WALL"); if (opp.elemental) add("ELEMENTAL")
+    }
+    Box(Modifier.fillMaxSize()) {
+        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
+        Column(Modifier.fillMaxSize().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("CHAPTER ${opp.chapter} OF 16", color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.width(190.dp).clip(RoundedCornerShape(10.dp))
+                    .background(Color(20, 26, 38)).border(2.dp, Gold, RoundedCornerShape(10.dp))
+                    .padding(6.dp)) {
+                val bmp = portrait
+                if (bmp != null) Image(bmp.asImageBitmap(), opp.name,
+                     Modifier.fillMaxWidth().aspectRatio(0.75f))
+                else Spacer(Modifier.fillMaxWidth().aspectRatio(0.75f))
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(opp.name, color = Color(255, 240, 200), fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Text(opp.epithet + " · inspired by " + opp.inspiredBy,
+                 color = Color(190, 175, 145), fontSize = 11.sp)
+            Spacer(Modifier.height(8.dp))
+            Text("\u201c${opp.intro}\u201d", color = Color(245, 238, 220), fontSize = 13.sp,
+                 textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Spacer(Modifier.height(10.dp))
+            Box(Modifier.clip(RoundedCornerShape(8.dp)).background(Color(60, 44, 18))
+                    .border(1.dp, Gold, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 14.dp, vertical = 5.dp)) {
+                Text(if (ruleNames.isEmpty()) "RULES: NONE" else "RULES:  " + ruleNames.joinToString(" · "),
+                     color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(14.dp))
+            Text("THEIR CARDS", color = Color(255, 150, 130), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                opp.deckIds.forEach { id -> catalog[id]?.let {
+                    CardThumb(it, conflict = false, owner = Owner.red,
+                              modifier = Modifier.width(62.dp).height(87.dp)) } }
+            }
+            Spacer(Modifier.weight(1f))
+            GoldButton("FIGHT  ▶", filled = true) { onFight() }
+            GoldButton("✕  CANCEL", filled = false) { onExit() }
+            Spacer(Modifier.height(10.dp))
+        }
     }
 }

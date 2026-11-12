@@ -18,6 +18,7 @@ data class PlayerSave(
     val neverFace: List<String> = emptyList(),
     val wins: Int = 0, val losses: Int = 0, val draws: Int = 0,
     val tutorialSeen: Boolean = false,
+    val campaignChapter: Int = 0,
     val cardMemory: Map<String, CardMemory> = emptyMap(),
     val expertStreak: Int = 0,
     val pendingPack: List<String> = emptyList(),
