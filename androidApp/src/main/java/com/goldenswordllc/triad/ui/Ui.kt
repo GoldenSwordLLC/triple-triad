@@ -338,6 +338,29 @@ fun elementColor(e: Element) = when (e) {
     Element.dark -> Color(0xFF455A64); Element.none -> Color(0xFF616161)
 }
 
+
+/** The campaign sigil for an element: white source asset, tinted at runtime. */
+@Composable
+fun ElementIcon(element: Element, color: Color, modifier: Modifier = Modifier) {
+    val res = when (element) {
+        Element.fire -> com.goldenswordllc.triad.R.drawable.elem_fire
+        Element.ice -> com.goldenswordllc.triad.R.drawable.elem_ice
+        Element.thunder -> com.goldenswordllc.triad.R.drawable.elem_thunder
+        Element.poison -> com.goldenswordllc.triad.R.drawable.elem_poison
+        Element.holy -> com.goldenswordllc.triad.R.drawable.elem_holy
+        Element.wind -> com.goldenswordllc.triad.R.drawable.elem_wind
+        Element.earth -> com.goldenswordllc.triad.R.drawable.elem_earth
+        Element.water -> com.goldenswordllc.triad.R.drawable.elem_water
+        else -> return                       // none / dark: no sigil
+    }
+    androidx.compose.foundation.Image(
+        painter = androidx.compose.ui.res.painterResource(res),
+        contentDescription = element.name,
+        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color),
+        modifier = modifier,
+    )
+}
+
 @Composable
 fun TradePickScreen(
     pending: PendingPick, peerName: String, owner: Owner,

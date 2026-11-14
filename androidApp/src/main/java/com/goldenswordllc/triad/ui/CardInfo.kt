@@ -40,8 +40,12 @@ fun CardInfoDialog(def: CardDef, owner: Owner, onClose: () -> Unit) {
                 Text("No. G-${def.no}   ·   Level ${def.level}   ·   ${def.type.name.lowercase()}",
                      color = Color(230, 205, 160), fontSize = 12.sp)
                 if (def.element != triad.core.Element.none) {
-                    Text("◆ ${def.element.name.lowercase()}",
-                         color = elementColor(def.element), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ElementIcon(def.element, elementColor(def.element), Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(def.element.name.lowercase(),
+                             color = elementColor(def.element), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 } else {
                     Text("no element", color = Color(170, 150, 110), fontSize = 12.sp)
                 }

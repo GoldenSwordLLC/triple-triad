@@ -754,11 +754,13 @@ fun BoardCells(state: GameState, lastFlips: List<Flip>, selectActive: Boolean,
                                 border = BorderStroke(1.dp, outline),
                                 color = SlotFill,
                             ) {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    if (cell.element != Element.none) {
-                                        Text("◆", color = elementColor(cell.element),
-                                             style = MaterialTheme.typography.titleLarge)
-                                    }
+                                if (cell.element != Element.none) {
+                                    // approved design: element wash + sigil chip
+                                    Box(Modifier.fillMaxSize()
+                                            .background(elementColor(cell.element).copy(alpha = 0.19f)))
+                                    ElementIcon(cell.element, elementColor(cell.element),
+                                                Modifier.align(Alignment.TopEnd)
+                                                    .padding(4.dp).size(22.dp))
                                 }
                             }
                         } else {

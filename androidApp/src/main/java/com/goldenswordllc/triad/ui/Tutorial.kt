@@ -54,7 +54,7 @@ fun TutorialScreen(onDone: () -> Unit) {
                         "if yours is higher, that card flips to your color.")
                     section("ELEMENTS",
                         "On elemental boards, a card sitting on a matching element cell gets +1 on every " +
-                        "side; on a mismatched cell it gets −1. Cells and elemental cards show the ◆ mark.")
+                        "side; on a mismatched cell it gets −1. Elemental cells show their sigil in the top-right corner.")
                     section("WINNING",
                         "When the grid is full, whoever owns more board cards wins. 5/4 is a win, never a draw.")
                     section("PLAYING FRIENDS",
