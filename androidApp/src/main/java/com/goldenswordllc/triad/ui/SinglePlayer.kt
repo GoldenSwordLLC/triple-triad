@@ -88,8 +88,8 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
         }
     }
 
-    val cleared = record.campaignChapter >= Campaign.OPPONENTS.size
-    val next = Campaign.OPPONENTS[record.campaignChapter.coerceIn(0, Campaign.OPPONENTS.size - 1)]
+    val cleared = record.campaignChapter >= Campaign.FIGHTS.size
+    val next = Campaign.fightAt(record.campaignChapter)
     if (askForDeck && !hasValidDeck) {
         NoDeckDialog(
             onBuild = { askForDeck = false; onDecks() },
@@ -221,7 +221,7 @@ class SPGameViewModel(
     private val difficulty: String,
     private val myDeck: List<CardDef>,
     val redDeck: List<CardDef>? = null,
-    val campaign: Campaign.Opponent? = null,
+    val campaign: Campaign.Fight? = null,
     private val threats: Set<String> = emptySet(),
     private val beatenCards: List<CardDef> = emptyList(),
     private val aiBudgetMs: Long = 900L,
@@ -393,7 +393,7 @@ fun SinglePlayerScreen(
     difficulty: String,
     myDeck: List<CardDef>,
     redDeck: List<CardDef>? = null,
-    campaign: Campaign.Opponent? = null,
+    campaign: Campaign.Fight? = null,
     threats: Set<String> = emptySet(),
     beatenCards: List<CardDef> = emptyList(),
     aiBudgetMs: Long = 900L,
