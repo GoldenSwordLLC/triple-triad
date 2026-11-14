@@ -51,14 +51,14 @@ object Campaign {
 
     val FIGHTS: List<Fight> = listOf(
         // ---- CHAPTER 1 · BALAMB DOCKS (1 lesser + boss, no rules) ----
-        f(1, "Skip", "the class-skipper", "the student skipping class",
-          "Skipped class for THIS. Best decision ever.", "Worth every detention.",
-          listOf("bitebug", "blobra", "gayla", "bloodsoul", "cockatrice"),
-          listOf("grat", "buel"), budget = 150),
         f(1, "Pip", "the dock kid", "the hall-circling boy",
           "You wanna play? Loser buys the fish bait!", "Aw, fishicles.",
           listOf("geezard", "gayla", "gesper", "bloodsoul", "fastitocalonf"),
           listOf("mesmerize", "grandmantis", "jelleye"), boss = true, budget = 150),
+        f(1, "Skip", "the class-skipper", "the student skipping class",
+          "Skipped class for THIS. Best decision ever.", "Worth every detention.",
+          listOf("bitebug", "blobra", "gayla", "bloodsoul", "cockatrice"),
+          listOf("grat", "buel"), budget = 150),
         // ---- CHAPTER 2 · DOLLET PUB ----
         f(2, "Watts", "the forest owl", "Watts",
           "Resistance business can wait. Shuffle up.", "Don't tell my commander.",
