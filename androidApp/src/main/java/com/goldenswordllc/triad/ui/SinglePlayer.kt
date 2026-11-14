@@ -93,7 +93,7 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
     if (askForDeck && !hasValidDeck) {
         NoDeckDialog(
             onBuild = { askForDeck = false; onDecks() },
-            onPlayAnyway = { askForDeck = false; onStart("c:${next.chapter}") },
+            onPlayAnyway = { askForDeck = false; onStart("c:${record.campaignChapter}") },
             onDismiss = { askForDeck = false },
         )
     }
@@ -787,15 +787,17 @@ fun GameMenuItem(text: String, destructive: Boolean = false, onClick: () -> Unit
 
 
 @Composable
-fun CampaignVersusScreen(catalog: Map<String, CardDef>, chapter: Int,
+fun CampaignVersusScreen(catalog: Map<String, CardDef>, index: Int,
                          onFight: () -> Unit, onExit: () -> Unit) {
-    val opp = Campaign.OPPONENTS[chapter - 1]
+    val opp = Campaign.fightAt(index)
+    val chapterMates = Campaign.fightsIn(opp.chapter)
+    val matchInChapter = chapterMates.indexOf(opp) + 1
     val ctx = LocalContext.current
     var portrait by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    LaunchedEffect(chapter) {
-        portrait = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    LaunchedEffect(index) {
+        if (opp.isBoss) portrait = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching {
-                android.graphics.BitmapFactory.decodeStream(ctx.assets.open("art/cast/%02d.png".format(chapter)))
+                android.graphics.BitmapFactory.decodeStream(ctx.assets.open("art/cast/%02d.png".format(opp.chapter)))
             }.getOrNull()
         }
     }
@@ -806,15 +808,24 @@ fun CampaignVersusScreen(catalog: Map<String, CardDef>, chapter: Int,
     Box(Modifier.fillMaxSize()) {
         MatBackground(Modifier.matchParentSize(), dim = 0.3f)
         Column(Modifier.fillMaxSize().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("CHAPTER ${opp.chapter} OF 16", color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text("CHAPTER ${opp.chapter} · MATCH $matchInChapter OF ${chapterMates.size}",
+                 color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
             Box(Modifier.width(190.dp).clip(RoundedCornerShape(10.dp))
                     .background(Color(20, 26, 38)).border(2.dp, Gold, RoundedCornerShape(10.dp))
                     .padding(6.dp)) {
-                val bmp = portrait
-                if (bmp != null) Image(bmp.asImageBitmap(), opp.name,
-                     Modifier.fillMaxWidth().aspectRatio(0.75f))
-                else Spacer(Modifier.fillMaxWidth().aspectRatio(0.75f))
+                val bmp = if (opp.isBoss) portrait else null
+                if (bmp != null) {
+                    Image(bmp.asImageBitmap(), opp.name, Modifier.fillMaxWidth().aspectRatio(0.75f))
+                } else {
+                    // lesser ranks: house-style monogram plate until art exists
+                    Box(Modifier.fillMaxWidth().aspectRatio(0.75f)
+                            .background(Color(38, 28, 12)),
+                        contentAlignment = Alignment.Center) {
+                        Text(opp.name.removePrefix("The ").first().toString(),
+                             color = Color(212, 175, 55), fontSize = 64.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
             Spacer(Modifier.height(10.dp))
             Text(opp.name, color = Color(255, 240, 200), fontSize = 26.sp, fontWeight = FontWeight.Bold)

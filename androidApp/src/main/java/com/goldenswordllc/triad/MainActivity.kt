@@ -369,26 +369,26 @@ class MainActivity : ComponentActivity() {
                     is Screen.Versus ->
                         CampaignVersusScreen(
                             catalog = catalog,
-                            chapter = s.chapter,
+                            index = s.chapter,
                             onFight = { screen = Screen.Game("c:${s.chapter}") },
                             onExit = { screen = Screen.Menu },
                         )
                     is Screen.Game -> {
                         if (s.difficulty.startsWith("c:")) {
-                            val ch = s.difficulty.substringAfter("c:").toInt()
-                            val opp = Campaign.OPPONENTS[ch - 1]
+                            val idx = s.difficulty.substringAfter("c:").toInt()
+                            val fight = Campaign.fightAt(idx)
                             val blueDeck = remember { battleDeck(save.value, catalog) }
                             SinglePlayerScreen(
                                 catalog = catalog,
                                 difficulty = "campaign",
                                 myDeck = blueDeck,
-                                campaign = opp,
-                                aiBudgetMs = opp.aiBudgetMs,
+                                campaign = fight,
+                                aiBudgetMs = fight.aiBudgetMs,
                                 onRecord = { won, _ ->
                                     if (won) {
-                                        save.value = if (ch > save.value.campaignChapter) {
-                                            val withCards = save.value.addCards(opp.rewardIds.mapNotNull { catalog[it] })
-                                            withCards.copy(campaignChapter = ch, wins = withCards.wins + 1)
+                                        save.value = if (idx == save.value.campaignChapter) {
+                                            val withCards = save.value.addCards(fight.rewardIds.mapNotNull { catalog[it] })
+                                            withCards.copy(campaignChapter = idx + 1, wins = withCards.wins + 1)
                                         } else save.value.copy(wins = save.value.wins + 1)
                                         persist(this@MainActivity, save.value)
                                     } else {
