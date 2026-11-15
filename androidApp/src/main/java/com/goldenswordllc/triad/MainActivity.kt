@@ -101,9 +101,8 @@ private sealed interface Screen {
     data object Credits : Screen
     data object Decks : Screen
     data object Multiplayer : Screen
-    data class Game(val difficulty: String, val redDeck: List<CardDef>? = null,
-                    val campaignFight: Campaign.Fight? = null) : Screen
-    data class Versus(val fight: Campaign.Fight) : Screen
+    data class Game(val difficulty: String, val redDeck: List<CardDef>? = null) : Screen
+    data object Versus : Screen
     data class PassRedPick(val blueDeck: List<CardDef>) : Screen
     data object Collection : Screen
     data object PackClaim : Screen
@@ -209,9 +208,8 @@ class MainActivity : ComponentActivity() {
                             record = save.value,
                             hasValidDeck = hasValidDeck,
                             onStart = { tier ->
-                                if (tier.startsWith("c:")) {
-                                    screen = Screen.Versus(Campaign.fightAt(tier.substringAfter("c:").toInt()))
-                                } else gatePack { screen = Screen.Game(tier) }
+                                if (tier.startsWith("c:")) screen = Screen.Versus
+                                else gatePack { screen = Screen.Game(tier) }
                             },
                             onTutorial = { screen = Screen.Tutorial },
                             onSettings = { screen = Screen.Settings },
@@ -310,15 +308,16 @@ class MainActivity : ComponentActivity() {
                     is Screen.Versus ->
                         CampaignVersusScreen(
                             catalog = catalog,
-                            fight = s.fight,
-                            onFight = { screen = Screen.Game("campaign", campaignFight = s.fight) },
+                            cleared = save.value.campaignCleared,
+                            onFight = { screen = Screen.Game("campaign") },
                             onExit = { screen = Screen.Menu },
                         )
                     is Screen.Game -> {
-                        if (s.campaignFight != null) {
-                            val fight = s.campaignFight
-                            val idx = Campaign.FIGHTS.indexOf(fight)
-                            val blueDeck = remember { battleDeck(save.value, catalog) }
+                        if (s.difficulty == "campaign") {
+                            // THE SAVE IS THE TRUTH: fight = the next uncleared one at render
+                            val fight = Campaign.fightAt(save.value.campaignCleared.size)
+                            val idx = save.value.campaignCleared.size
+                            val blueDeck = remember(save.value.campaignCleared) { battleDeck(save.value, catalog) }
                             SinglePlayerScreen(
                                 catalog = catalog,
                                 difficulty = "campaign",
@@ -342,10 +341,7 @@ class MainActivity : ComponentActivity() {
                                         persist(this@MainActivity, save.value)
                                     }
                                 },
-                                onNext = {
-                                    val next = Campaign.FIGHTS.getOrNull(Campaign.FIGHTS.indexOf(fight) + 1)
-                                    if (next != null) screen = Screen.Versus(next) else screen = Screen.Menu
-                                },
+                                onNext = { screen = Screen.Game("campaign") },
                                 onManageDeck = { screen = Screen.Decks },
                                 onExit = { screen = Screen.Menu },
                             )

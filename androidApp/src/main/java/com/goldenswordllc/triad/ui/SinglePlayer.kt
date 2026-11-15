@@ -823,9 +823,9 @@ fun GameMenuItem(text: String, destructive: Boolean = false, onClick: () -> Unit
 
 
 @Composable
-fun CampaignVersusScreen(catalog: Map<String, CardDef>, fight: Campaign.Fight,
+fun CampaignVersusScreen(catalog: Map<String, CardDef>, cleared: List<Int>,
                          onFight: () -> Unit, onExit: () -> Unit) {
-    val opp = fight
+    val opp = Campaign.fightAt(Campaign.nextUncleared(cleared))   // the save is the truth
     val chapterMates = Campaign.fightsIn(opp.chapter)
     val matchInChapter = chapterMates.indexOf(opp) + 1
     val ctx = LocalContext.current
