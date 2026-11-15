@@ -102,7 +102,7 @@ private sealed interface Screen {
     data object Decks : Screen
     data object Multiplayer : Screen
     data class Game(val difficulty: String, val redDeck: List<CardDef>? = null) : Screen
-    data object Versus : Screen
+    data class Versus(val fight: Campaign.Fight) : Screen
     data class PassRedPick(val blueDeck: List<CardDef>) : Screen
     data object Collection : Screen
     data object PackClaim : Screen
@@ -208,8 +208,9 @@ class MainActivity : ComponentActivity() {
                             record = save.value,
                             hasValidDeck = hasValidDeck,
                             onStart = { tier ->
-                                if (tier.startsWith("c:")) screen = Screen.Versus
-                                else gatePack { screen = Screen.Game(tier) }
+                                if (tier.startsWith("c:")) {
+                                    screen = Screen.Versus(Campaign.fightAt(tier.substringAfter("c:").toInt()))
+                                } else gatePack { screen = Screen.Game(tier) }
                             },
                             onTutorial = { screen = Screen.Tutorial },
                             onSettings = { screen = Screen.Settings },
@@ -314,10 +315,12 @@ class MainActivity : ComponentActivity() {
                         )
                     is Screen.Game -> {
                         if (s.difficulty == "campaign") {
-                            // THE SAVE IS THE TRUTH: fight = the next uncleared one at render
-                            val fight = Campaign.fightAt(save.value.campaignCleared.size)
-                            val idx = save.value.campaignCleared.size
-                            val blueDeck = remember(save.value.campaignCleared) { battleDeck(save.value, catalog) }
+                            // snapshot ONCE per navigation: the fight you entered with stays
+                            // yours through the win's save-write — re-deriving here teleported
+                            // players straight into the next fight before the result showed
+                            val fight = remember { Campaign.fightAt(save.value.campaignCleared.size) }
+                            val idx = remember { save.value.campaignCleared.size }
+                            val blueDeck = remember { battleDeck(save.value, catalog) }
                             SinglePlayerScreen(
                                 catalog = catalog,
                                 difficulty = "campaign",
@@ -341,7 +344,16 @@ class MainActivity : ComponentActivity() {
                                         persist(this@MainActivity, save.value)
                                     }
                                 },
-                                onNext = { screen = Screen.Game("campaign") },
+                                onNext = {
+                                    // route through the versus screen so the next opponent
+                                    // is presented before the fight starts
+                                    val nextIdx = idx + 1
+                                    if (nextIdx < Campaign.FIGHTS.size) {
+                                        screen = Screen.Versus(Campaign.fightAt(nextIdx))
+                                    } else {
+                                        screen = Screen.Menu
+                                    }
+                                },
                                 onManageDeck = { screen = Screen.Decks },
                                 onExit = { screen = Screen.Menu },
                             )
