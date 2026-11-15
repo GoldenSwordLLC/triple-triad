@@ -142,7 +142,7 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
             Spacer(Modifier.height(6.dp))
             GoldButton(if (cleared) "FREE PLAY  ▶" else "PLAY  ▶",
                        sub = if (cleared) "circuit complete · challenge the Monarch again"
-                             else "chapter ${next.chapter} of 16 · ${next.name}, ${next.epithet}",
+                             else "chapter ${next.chapter} · match ${Campaign.fightsIn(next.chapter).indexOf(next) + 1} of ${Campaign.fightsIn(next.chapter).size} — ${next.name}, ${next.epithet}",
                        filled = true) {
                 if (hasValidDeck) onStart("c:${next.chapter}") else askForDeck = true
             }
@@ -864,9 +864,8 @@ fun CampaignVersusScreen(catalog: Map<String, CardDef>, index: Int,
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Text(opp.name, color = Color(255, 240, 200), fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            Text(opp.epithet + " · inspired by " + opp.inspiredBy,
-                 color = Color(190, 175, 145), fontSize = 11.sp)
+            Text(opp.name, color = Color(255, 240, 200), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text(opp.epithet, color = Color(245, 232, 205), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Text("\u201c${opp.intro}\u201d", color = Color(245, 238, 220), fontSize = 13.sp,
                  textAlign = androidx.compose.ui.text.style.TextAlign.Center)
