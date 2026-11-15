@@ -88,12 +88,12 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
         }
     }
 
-    val cleared = record.campaignChapter >= Campaign.FIGHTS.size
-    val next = Campaign.fightAt(record.campaignChapter)
+    val cleared = Campaign.isComplete(record.campaignCleared)
+    val next = Campaign.fightAt(Campaign.nextUncleared(record.campaignCleared))
     if (askForDeck && !hasValidDeck) {
         NoDeckDialog(
             onBuild = { askForDeck = false; onDecks() },
-            onPlayAnyway = { askForDeck = false; onStart("c:${record.campaignChapter}") },
+            onPlayAnyway = { askForDeck = false; onStart("c:${Campaign.nextUncleared(record.campaignCleared)}") },
             onDismiss = { askForDeck = false },
         )
     }

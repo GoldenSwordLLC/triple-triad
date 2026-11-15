@@ -326,15 +326,13 @@ class MainActivity : ComponentActivity() {
                                 onRecord = { won, _ ->
                                     if (won) {
                                         save.value = run {
-                                            val firstClear = idx == save.value.campaignChapter
+                                            val cleared = save.value.campaignCleared
+                                            val firstClear = idx !in cleared
                                             val base = if (firstClear)
                                                 save.value.addCards(fight.rewardIds.mapNotNull { catalog[it] })
+                                                    .copy(campaignCleared = cleared + idx)
                                             else save.value
-                                            // monotonic: any win at-or-after progress pushes the ladder forward
-                                            // (self-heals stale progress carried from older betas)
-                                            if (idx + 1 > base.campaignChapter)
-                                                base.copy(campaignChapter = idx + 1, wins = base.wins + 1)
-                                            else base.copy(wins = base.wins + 1)
+                                            base.copy(wins = base.wins + 1)
                                         }
                                         persist(this@MainActivity, save.value)
                                     } else {

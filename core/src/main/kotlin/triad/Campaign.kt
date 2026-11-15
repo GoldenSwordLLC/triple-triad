@@ -290,6 +290,12 @@ object Campaign {
     fun fightsIn(chapter: Int): List<Fight> = FIGHTS.filter { it.chapter == chapter }
     fun fightAt(globalIndex: Int): Fight = FIGHTS[globalIndex.coerceIn(0, FIGHTS.size - 1)]
 
+    /** The next uncleared fight in the linear run — the only match the menu can
+     *  start. Cleared fights only ever get ADDED, so progress can't regress. */
+    fun nextUncleared(cleared: List<Int>): Int =
+        FIGHTS.indices.firstOrNull { it !in cleared.toSet() } ?: FIGHTS.size
+    fun isComplete(cleared: List<Int>): Boolean = cleared.toSet().size >= FIGHTS.size
+
     /** Cards the player owns before global fight [index] (starter + all earlier
      *  first-clear rewards). */
     fun playerArsenal(index: Int, catalog: Map<String, CardDef>): List<CardDef> =
