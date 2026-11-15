@@ -823,14 +823,14 @@ fun GameMenuItem(text: String, destructive: Boolean = false, onClick: () -> Unit
 
 
 @Composable
-fun CampaignVersusScreen(catalog: Map<String, CardDef>, index: Int,
+fun CampaignVersusScreen(catalog: Map<String, CardDef>, fight: Campaign.Fight,
                          onFight: () -> Unit, onExit: () -> Unit) {
-    val opp = Campaign.fightAt(index)
+    val opp = fight
     val chapterMates = Campaign.fightsIn(opp.chapter)
     val matchInChapter = chapterMates.indexOf(opp) + 1
     val ctx = LocalContext.current
     var portrait by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    LaunchedEffect(index) {
+    LaunchedEffect(opp) {
         if (opp.isBoss) portrait = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching {
                 android.graphics.BitmapFactory.decodeStream(ctx.assets.open("art/cast/%02d.png".format(opp.chapter)))
