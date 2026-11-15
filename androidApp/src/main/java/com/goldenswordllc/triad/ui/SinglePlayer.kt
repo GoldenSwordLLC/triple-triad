@@ -474,7 +474,8 @@ fun SinglePlayerScreen(
                     state.isOver -> "MATCH OVER" to Color(70, 60, 40)
                     vm.passAndPlay -> if (state.turn == Owner.blue) "BLUE'S TURN" to FrameBlue
                                       else "RED'S TURN" to FrameRed
-                    vm.aiThinking -> "AI IS THINKING…" to Color(70, 60, 40)
+                    vm.aiThinking -> (if (campaign != null) campaign.name.uppercase() + " IS THINKING…"
+                                      else "AI IS THINKING…") to Color(70, 60, 40)
                     state.turn == Owner.blue -> "YOUR TURN" to FrameBlue
                     else -> "OPPONENT'S TURN" to Color(70, 60, 40)
                 }
@@ -541,13 +542,13 @@ fun SinglePlayerScreen(
                     Text("$blue - $red", color = Color(230, 205, 160), fontSize = 14.sp)
                     if (campaign != null && blue > red) {
                         Spacer(Modifier.height(12.dp))
-                        Text("FIRST-CLEAR REWARD", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Reward", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             campaign.rewardIds.forEach { id ->
                                 catalog[id]?.let {
                                     CardThumb(it, conflict = false, owner = Owner.blue,
-                                              modifier = Modifier.width(64.dp).height(90.dp))
+                                              modifier = Modifier.weight(1f).aspectRatio(CardSheets.ASPECT))
                                 }
                             }
                         }
@@ -798,6 +799,13 @@ fun BoardCells(state: GameState, lastFlips: List<Flip>, selectActive: Boolean,
                                 }
                             }
                         } else {
+                            // the recessed slot stays under the placed card
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, SlotOutline),
+                                color = SlotFill,
+                            ) {}
                             BoardCell(idx, cell, lastFlips, onInfo, onCardTap)
                         }
                     }
