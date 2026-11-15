@@ -361,48 +361,6 @@ fun ElementIcon(element: Element, color: Color, modifier: Modifier = Modifier) {
     )
 }
 
-@Composable
-fun TradePickScreen(
-    pending: PendingPick, peerName: String, owner: Owner,
-    onConfirm: (List<String>) -> Unit,
-) {
-    val selected = remember { mutableStateListOf<Int>() }
-    Box(Modifier.fillMaxSize()
-            .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                       indication = null) {}
-    ) {
-
-        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
-        Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
-               horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                if (pending.count == pending.candidates.size) "You won! Review the cards you're taking from ${peerName}:"
-                else "You won! Choose ${pending.count} card${if (pending.count > 1) "s" else ""} from ${peerName}:",
-                color = Color(255, 240, 200), fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center)
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3), modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                itemsIndexed(pending.candidates, key = { i, _ -> i }) { i, def ->
-                    CardThumb(
-                        def, conflict = false, selected = i in selected, owner = owner,
-                        modifier = Modifier.fillMaxWidth().aspectRatio(CardSheets.ASPECT).clickable {
-                            if (i in selected) selected.remove(i)
-                            else if (selected.size < pending.count) selected.add(i)
-                        })
-                }
-            }
-            GoldAction(
-                if (selected.size == pending.count) "Take ${selected.size}/${pending.count}"
-                else "Choose ${pending.count - selected.size} more",
-                filled = true, enabled = selected.size == pending.count,
-                modifier = Modifier.fillMaxWidth(),
-            ) { onConfirm(selected.map { pending.candidates[it].id }) }
-        }
-    }
-}
-
 data class ResultState(
     val outcome: SessionEvent.Outcome,
     val transfers: List<CardTransfer> = emptyList(),
@@ -413,13 +371,11 @@ data class ResultState(
 @Composable
 fun EndOfMatchHost(
     result: ResultState, peerName: String, myColor: Owner,
-    onConfirmPick: (List<String>) -> Unit, onDone: () -> Unit,
+    onDone: () -> Unit,
     onRematch: (() -> Unit)? = null,
     onViewBoard: (() -> Unit)? = null,
 ) {
-    val pending = (result.outcome as? SessionEvent.Outcome.Won)?.pendingPick
-    if (pending != null && !result.applied) TradePickScreen(pending, peerName, myColor.other, onConfirmPick)
-    else MatchResultScreen(result, myColor, onDone, onRematch, onViewBoard)
+    MatchResultScreen(result, myColor, onDone, onRematch, onViewBoard)
 }
 
 @Composable

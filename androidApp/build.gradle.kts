@@ -19,7 +19,7 @@ android {
         applicationId = "com.goldenswordllc.triad"
         minSdk = 26
         targetSdk = 34
-        versionCode = 98
+        versionCode = 99
         versionName = "0.9.52"
     }
 

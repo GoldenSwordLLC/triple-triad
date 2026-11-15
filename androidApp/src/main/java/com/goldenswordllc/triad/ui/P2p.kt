@@ -37,8 +37,6 @@ import triad.core.CardDef
 import triad.core.GameState
 import triad.core.MatchSettings
 import triad.core.Owner
-import triad.core.TradeRule
-import triad.core.maxLoss
 import triad.net.ColorPref
 import triad.net.P2pSession
 import triad.net.SessionEvent
@@ -62,7 +60,6 @@ fun PreMatchFlow(session: P2pSession, myCardCount: Int = Int.MAX_VALUE,
 fun HostLobbyScreen(
     catalog: Map<String, CardDef>,
     myDeckIds: List<String>,
-    cardCount: Int,
     onMatchStarted: (P2pSession, GameState, Owner) -> Unit,
     onExit: () -> Unit,
 ) {
@@ -73,8 +70,6 @@ fun HostLobbyScreen(
     val error by vm.error.collectAsState()
     val transport by vm.transport.collectAsState()
     var started by remember { mutableStateOf(false) }
-    var trade by remember { mutableStateOf(TradeRule.one) }
-    fun ruleAllowed(rule: TradeRule): Boolean = cardCount - rule.maxLoss() >= 5
 
     val context = LocalContext.current
     val btAdapter = remember {
@@ -88,7 +83,7 @@ fun HostLobbyScreen(
     fun begin(bleEnabled: Boolean) {
         started = true
         vm.start(
-            settings = MatchSettings(trade = trade),
+            settings = MatchSettings(),
             me = P2pSession.PlayerLocal(myDeckIds, emptyList(), ColorPref.any),
             bleEnabled = bleEnabled,
         )
@@ -195,54 +190,6 @@ fun HostLobbyScreen(
                                verticalArrangement = Arrangement.Center) {
                             Text("HOST A MATCH", color = P2pCream, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(14.dp))
-                    Text("TRADE RULE, what the loser gives up", color = Color(230, 205, 160), fontSize = 11.sp,
-                         fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-                    Spacer(Modifier.height(6.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(TradeRule.none, TradeRule.one, TradeRule.direct,
-                               TradeRule.diff, TradeRule.all).forEach { rule ->
-                            val sel = trade == rule
-                            val allowed = ruleAllowed(rule)
-                            Box(Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(when {
-                                    sel && allowed -> Color(0xFFD4AF37)
-                                    else -> Color(30, 22, 8).copy(alpha = 0.85f)
-                                })
-                                .border(
-                                    if (sel) 2.dp else 1.dp,
-                                    if (allowed) Color(0xFFD4AF37) else Color(150, 130, 90).copy(alpha = 0.35f),
-                                    RoundedCornerShape(10.dp))
-                                .clickable(enabled = allowed) {
-                                    if (allowed) trade = rule
-                                }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                Text(rule.name.uppercase(),
-                                     color = if (sel && allowed) Color(55, 38, 10)
-                                             else if (allowed) Color(255, 240, 200)
-                                             else Color(190, 175, 145).copy(alpha = 0.45f),
-                                     fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    if (!ruleAllowed(TradeRule.all)) {
-                        Text("Grayed rules could leave you without a deck if you lose, win packs first.",
-                             color = Color(190, 175, 145), fontSize = 10.sp,
-                             modifier = Modifier.padding(top = 4.dp))
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-                    Text(when (trade) {
-                             TradeRule.none -> "Loser pays nothing, a friendly game."
-                             TradeRule.one -> "Winner takes 1 card from the loser's hand."
-                             TradeRule.direct -> "Every captured card goes to its captor, both ways."
-                             TradeRule.diff -> "Winner takes cards equal to the score gap."
-                             TradeRule.all -> "Winner takes the loser's whole hand."
-                         },
-                         color = Color(245, 238, 220), fontSize = 11.sp,
-                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                         modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(14.dp))
                     GoldButton("SHOW QR  ▶", filled = true) {
                         screenError = null
@@ -284,9 +231,7 @@ fun HostLobbyScreen(
 fun JoinFlowScreen(
     catalog: Map<String, CardDef>,
     myDeckIds: List<String>,
-    cardCount: Int,
     onMatchStarted: (P2pSession, GameState, Owner) -> Unit,
-    onTransfers: (List<triad.core.CardTransfer>, Owner) -> Unit,
     onExit: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -348,7 +293,7 @@ fun JoinFlowScreen(
             when {
                 phase == "prematch" && joinSession != null -> {
                     val s = joinSession!!
-                    PreMatchFlow(s, myCardCount = cardCount, transportNote = transport,
+                    PreMatchFlow(s, transportNote = transport,
                                  onMatchStarted = { st, color -> onMatchStarted(s, st, color) },
                                  onExit = onExit)
                 }
@@ -380,7 +325,7 @@ fun JoinFlowScreen(
                                 if (inv == null && raw != null) {
                                     errorMsg = "That QR isn't a Triad invite, try again."
                                 } else if (inv?.mode == "trade") {
-                                    errorMsg = "That's a TRADE invite, use TRADE CARDS."
+                                    errorMsg = "Trade rooms are retired."
                                 } else if (inv != null) {
 
                                     invite = inv
@@ -404,33 +349,11 @@ fun JoinFlowScreen(
 }
 
 @Composable
-fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Unit,
+fun MultiplayerScreen(hasActiveDeck: Boolean, onDecks: () -> Unit,
                       onPassPlay: () -> Unit, onHost: () -> Unit, onJoin: () -> Unit,
                       onHostOnline: () -> Unit = {}, onJoinOnline: () -> Unit = {},
-                      onTradeHost: () -> Unit = {}, onTradeJoin: () -> Unit = {},
                       onBack: () -> Unit) {
     var askForDeck by remember { mutableStateOf<(() -> Unit)?>(null) }
-    var tooFewCards by remember { mutableStateOf(false) }
-    if (tooFewCards) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { tooFewCards = false },
-            containerColor = Color(30, 22, 8),
-            title = { Text("Not enough cards", color = Color(255, 240, 200), fontWeight = FontWeight.Bold) },
-            text = { Text("Two-phone matches need at least 6 cards, trading can take the 5 you " +
-                          "play with, and the floor guarantees you always keep a full deck. " +
-                          "Win single-player packs to grow your collection.", color = Color(245, 238, 220)) },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { tooFewCards = false; onBack() }) {
-                    Text("PLAY SINGLE PLAYER", color = Color(255, 200, 100), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { tooFewCards = false }) {
-                    Text("OK", color = Color(230, 205, 160), fontWeight = FontWeight.Bold)
-                }
-            },
-        )
-    }
     if (askForDeck != null && !hasActiveDeck) {
         val mode = askForDeck
         NoDeckDialog(
@@ -441,7 +364,6 @@ fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Uni
     }
     fun gate(mode: () -> Unit): () -> Unit = if (hasActiveDeck) mode else { { askForDeck = mode } }
 
-    fun gateTrading(mode: () -> Unit): () -> Unit = if (cardCount < 6) { { tooFewCards = true } } else gate(mode)
     Box(Modifier.fillMaxSize()) {
         MatBackground(Modifier.matchParentSize(), dim = 0.24f, bottomScrim = true)
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -454,43 +376,17 @@ fun MultiplayerScreen(cardCount: Int, hasActiveDeck: Boolean, onDecks: () -> Uni
                 Column(Modifier.fillMaxSize().padding(horizontal = 10.dp),
                        horizontalAlignment = Alignment.CenterHorizontally,
                        verticalArrangement = Arrangement.Center) {
-                    // one decision at a time: match or trade, then how to connect
-                    var tab by remember { mutableStateOf("match") }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("match" to "PLAY A MATCH", "trade" to "TRADE CARDS").forEach { (key, label) ->
-                            val sel = tab == key
-                            Box(Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (sel) Color(0xFFD4AF37) else Color(30, 22, 8).copy(alpha = 0.85f))
-                                .border(if (sel) 2.dp else 1.dp, Color(0xFFD4AF37), RoundedCornerShape(10.dp))
-                                .clickable { tab = key }
-                                .padding(horizontal = 16.dp, vertical = 8.dp)) {
-                                Text(label, color = if (sel) Color(55, 38, 10) else Color(255, 240, 200),
-                                     fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    if (tab == "match") {
                         Text("ONE PHONE", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         GoldButton("PASS & PLAY", onClick = gate(onPassPlay))
                         Spacer(Modifier.height(14.dp))
                         Text("TWO PHONES, NEARBY", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        GoldButton("HOST A MATCH", onClick = gateTrading(onHost))
-                        GoldButton("JOIN A MATCH", onClick = gateTrading(onJoin))
+                        GoldButton("HOST A MATCH", onClick = gate(onHost))
+                        GoldButton("JOIN A MATCH", onClick = gate(onJoin))
                         Spacer(Modifier.height(14.dp))
                         Text("ANY DISTANCE, ONLINE", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        GoldButton("HOST A ROOM", onClick = gateTrading(onHostOnline))
-                        GoldButton("JOIN WITH A CODE", onClick = gateTrading(onJoinOnline))
-                    } else {
-                        Text("swap cards with a friend, no match needed", color = Color(190, 175, 145), fontSize = 11.sp)
-                        Spacer(Modifier.height(8.dp))
-                        // trading needs cards (>=6 so the 5-card floor is meaningful)
-                        // but NOT an active deck — no hand is played
-                        GoldButton("HOST A TRADE", onClick = if (cardCount < 6) { { tooFewCards = true } } else onTradeHost)
-                        GoldButton("JOIN A TRADE", onClick = if (cardCount < 6) { { tooFewCards = true } } else onTradeJoin)
-                    }
-                }
+                        GoldButton("HOST A ROOM", onClick = gate(onHostOnline))
+                        GoldButton("JOIN WITH A CODE", onClick = gate(onJoinOnline))
+            }
             }
             Spacer(Modifier.height(12.dp))
             Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
@@ -528,19 +424,7 @@ class P2pMatchViewModel(
                     is SessionEvent.RematchStarted -> {
                         state = e.state; myColor = e.myColor; result = null; lastFlips = emptyList()
                     }
-                    is SessionEvent.GameOver -> {
-                        // under a pick-based trade rule the loser sits waiting while the
-                        // winner picks — block rematch + show that state
-                        val tr = session.tradeRule
-                        val awaitingPick = e.outcome is SessionEvent.Outcome.Lost &&
-                            (tr == TradeRule.one || tr == TradeRule.diff || tr == TradeRule.all)
-                        result = ResultState(outcome = e.outcome, awaitingPeerPick = awaitingPick)
-                    }
-                    is SessionEvent.TradeResolved -> {
-                        result = result?.copy(transfers = e.transfers, applied = true)
-                        onTransfers(e.transfers, myColor)
-                        session.teardown()
-                    }
+                    is SessionEvent.GameOver -> result = ResultState(outcome = e.outcome)
                     is SessionEvent.Forfeit -> ended = if (e.winner == myColor) {
                         if (e.reason.contains("resign")) "WIN BY RESIGN" else "WIN BY DISCONNECT"
                     } else e.reason
@@ -556,7 +440,6 @@ class P2pMatchViewModel(
     val myTurn: Boolean get() = state?.let { !it.isOver && it.turn == myColor } == true
 
     fun play(cardIndex: Int, cell: Int) = session.play(cardIndex, cell)
-    fun confirmPick(ids: List<String>) = session.tradePick(ids)
     fun rematch() = session.rematch()
     fun resign() = session.resign()
     fun done() = session.teardown()
@@ -643,7 +526,6 @@ fun P2pMatchScreen(
                 result = vm.result!!,
                 peerName = session.peerName,
                 myColor = vm.myColor,
-                onConfirmPick = vm::confirmPick,
                 onDone = { vm.done(); onExit() },
                 onRematch = vm::rematch,
                 onViewBoard = { viewBoard = true },

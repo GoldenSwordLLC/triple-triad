@@ -403,6 +403,8 @@ fun SinglePlayerScreen(
     onPackPending: (List<CardDef>) -> Unit = {},
     onClaimPendingPack: () -> Unit = {},
     onExit: () -> Unit,
+    onNext: (() -> Unit)? = null,
+    onManageDeck: (() -> Unit)? = null,
 ) {
 
     val sittingThreats = remember { threats }
@@ -501,6 +503,7 @@ fun SinglePlayerScreen(
 
         if (state.isOver && !viewBoard) {
             val blue = state.score(Owner.blue); val red = state.score(Owner.red)
+            val campaignWon = campaign != null && blue > red
             Box(
                 Modifier.fillMaxSize()
                     .background(Color(0, 0, 0, 140))
@@ -557,6 +560,29 @@ fun SinglePlayerScreen(
                         }
                         Spacer(Modifier.height(8.dp))
                     }
+                    if (campaign != null && campaignWon) {
+                        if (onNext != null && campaign.chapter < Campaign.CHAPTERS) {
+                            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                    .background(Color(46, 125, 50))
+                                    .border(2.dp, Color(0xFFD4AF37), RoundedCornerShape(12.dp))
+                                    .clickable { onNext() }.padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center) {
+                                Text("NEXT MATCH  ▶", color = Color(255, 240, 200), fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        if (onManageDeck != null) {
+                            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                    .background(Color(30, 22, 8))
+                                    .border(2.dp, Color(0xFFD4AF37), RoundedCornerShape(12.dp))
+                                    .clickable { onManageDeck() }.padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center) {
+                                Text("MANAGE DECK", color = Color(255, 240, 200), fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
+                    if (!(campaign != null && campaignWon)) {
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                             .background(Color(120, 85, 20))
                             .border(2.dp, Color(0xFFD4AF37), RoundedCornerShape(12.dp))
@@ -565,6 +591,7 @@ fun SinglePlayerScreen(
                         Text("REMATCH", color = Color(255, 240, 200), fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.height(8.dp))
+                    }
                     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                             .background(Color(30, 22, 8))
                             .border(2.dp, Color(0xFFD4AF37), RoundedCornerShape(12.dp))

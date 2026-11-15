@@ -33,7 +33,6 @@ import triad.net.ColorPref
 import triad.core.GameState
 import triad.core.MatchSettings
 import triad.core.Owner
-import triad.core.TradeRule
 import triad.core.maxLoss
 import triad.net.P2pSession
 
@@ -99,7 +98,6 @@ fun OnlineHostScreen(
     relayPort: Int,
     catalog: Map<String, CardDef>,
     myDeckIds: List<String>,
-    cardCount: Int,
     onMatchStarted: (P2pSession, GameState, Owner) -> Unit,
     onExit: () -> Unit,
 ) {
@@ -112,8 +110,6 @@ fun OnlineHostScreen(
     val code by vm.code.collectAsState()
     val session by vm.session.collectAsState()
     val error by vm.error.collectAsState()
-    var trade by remember { mutableStateOf(TradeRule.one) }
-    fun ruleAllowed(rule: TradeRule): Boolean = cardCount - rule.maxLoss() >= 5
 
     Box(Modifier.fillMaxSize()) {
         MatBackground(Modifier.matchParentSize(), dim = 0.24f)
@@ -121,7 +117,7 @@ fun OnlineHostScreen(
             when {
                 session != null -> {
                     val s = session!!
-                    PreMatchFlow(s, myCardCount = cardCount, transportNote = "online relay",
+                    PreMatchFlow(s, transportNote = "online relay",
                         onMatchStarted = { st, color -> onMatchStarted(s, st, color) },
                         onExit = onExit)
                 }
@@ -170,46 +166,8 @@ fun OnlineHostScreen(
                                verticalArrangement = Arrangement.Center) {
                             Text("HOST ONLINE", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(14.dp))
-                            Text("TRADE RULE, what the loser gives up", color = Color(230, 205, 160),
-                                 fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                                 modifier = Modifier.align(Alignment.Start))
-                            Spacer(Modifier.height(6.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                listOf(TradeRule.none, TradeRule.one, TradeRule.direct,
-                                       TradeRule.diff, TradeRule.all).forEach { rule ->
-                                    val sel = trade == rule
-                                    val allowed = ruleAllowed(rule)
-                                    Box(Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(when {
-                                            sel && allowed -> Color(0xFFD4AF37)
-                                            else -> Color(30, 22, 8).copy(alpha = 0.85f)
-                                        })
-                                        .border(if (sel) 2.dp else 1.dp,
-                                                if (allowed) Color(0xFFD4AF37) else Color(150, 130, 90).copy(alpha = 0.35f),
-                                                RoundedCornerShape(10.dp))
-                                        .clickable(enabled = allowed) { if (allowed) trade = rule }
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                        Text(rule.name.uppercase(),
-                                             color = if (sel && allowed) Color(55, 38, 10)
-                                                     else if (allowed) Color(255, 240, 200)
-                                                     else Color(190, 175, 145).copy(alpha = 0.45f),
-                                             fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Text(when (trade) {
-                                     TradeRule.none -> "Loser pays nothing, a friendly game."
-                                     TradeRule.one -> "Winner takes 1 card from the loser's hand."
-                                     TradeRule.direct -> "Every captured card goes to its captor, both ways."
-                                     TradeRule.diff -> "Winner takes cards equal to the score gap."
-                                     TradeRule.all -> "Winner takes the loser's whole hand."
-                                 },
-                                 color = Color(245, 238, 220), fontSize = 11.sp,
-                                 textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                             Spacer(Modifier.height(16.dp))
-                            GoldButton("HOST A ROOM  ▶", filled = true) { vm.start(MatchSettings(trade = trade)) }
+                            GoldButton("HOST A ROOM  ▶", filled = true) { vm.start(MatchSettings()) }
                             error?.let {
                                 Spacer(Modifier.height(8.dp))
                                 Text("ERROR: $it", color = Color(255, 120, 100), fontWeight = FontWeight.Bold)
@@ -246,7 +204,7 @@ fun OnlineJoinScreen(
     when {
         joinSession != null -> {
             val s = joinSession!!
-            PreMatchFlow(s, myCardCount = cardCount, transportNote = "online relay",
+            PreMatchFlow(s, transportNote = "online relay",
                 onMatchStarted = { st, color -> onMatchStarted(s, st, color) },
                 onExit = onExit)
         }
