@@ -348,7 +348,14 @@ class SPGameViewModel(
                         "easy" -> Ai.easy(snapshot)
                         "hard" -> Ai.hard(snapshot, budgetMs = 900)
 
-                        "campaign" -> Ai.hard(snapshot, budgetMs = aiBudgetMs)
+                        "campaign" -> when {
+                            // the campaign scales the ALGORITHM, not just the clock:
+                            // opening chapters play random (tutorial), mid-game greedy,
+                            // Hard search only from chapter 8 onward
+                            campaign!!.chapter <= 2 -> Ai.easy(snapshot)
+                            campaign.chapter <= 5 -> Ai.medium(snapshot)
+                            else -> Ai.hard(snapshot, budgetMs = aiBudgetMs)
+                        }
                         "expert" -> Ai.hard(snapshot, budgetMs = aiBudgetMs, threats = threats)
                         else -> Ai.medium(snapshot)
                     }
