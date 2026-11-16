@@ -235,6 +235,7 @@ fun RulesReviewBody(s: PreMatchUi.RulesReview, onAccept: () -> Unit, onDecline: 
 fun RulesSummary(s: MatchSettings) {
     val active = buildList {
         if (s.rules.same) add("Same"); if (s.rules.plus) add("Plus")
+        if (s.rules.combo && (s.rules.same || s.rules.plus)) add("Combo")
         if (s.rules.sameWall) add("Same Wall"); if (s.rules.elemental) add("Elemental")
     }.ifEmpty { listOf("Basic") }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -249,20 +250,22 @@ fun RulesSummary(s: MatchSettings) {
 fun Rules.toggled(index: Int): Rules = when (index) {
     0 -> copy(same = !same)
     1 -> copy(plus = !plus)
-    2 -> copy(sameWall = !sameWall)
+    2 -> copy(combo = !combo)
+    3 -> copy(sameWall = !sameWall)
     else -> copy(elemental = !elemental)
 }
 
-/** Host-side toggles for the four optional match rules. */
+/** Host-side toggles for the optional match rules. */
 @Composable
 fun RulesPicker(rules: Rules, onToggle: (Int) -> Unit, modifier: Modifier = Modifier) {
-    val labels = listOf("SAME", "PLUS", "SAME WALL", "ELEMENT")
-    val flags = listOf(rules.same, rules.plus, rules.sameWall, rules.elemental)
+    val labels = listOf("SAME", "PLUS", "COMBO", "SAME WALL", "ELEMENT")
+    val flags = listOf(rules.same, rules.plus, rules.combo, rules.sameWall, rules.elemental)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        for (row in 0..1) {
+        for (row in 0..2) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (col in 0..1) {
                     val i = row * 2 + col
+                    if (i >= labels.size) continue
                     val on = flags[i]
                     Box(Modifier
                         .clip(RoundedCornerShape(10.dp))

@@ -40,7 +40,8 @@ data class Board(val cells: List<Cell> = List(9) { Cell() }) {
 
 @Serializable
 data class Rules(val same: Boolean = false, val plus: Boolean = false,
-                 val sameWall: Boolean = false, val elemental: Boolean = false)
+                 val sameWall: Boolean = false, val elemental: Boolean = false,
+                 val combo: Boolean = true)
 
 @Serializable
 data class MatchSettings(

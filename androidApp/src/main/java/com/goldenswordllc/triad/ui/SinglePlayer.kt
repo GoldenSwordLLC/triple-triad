@@ -498,6 +498,16 @@ fun SinglePlayerScreen(
                 }
             }
 
+            // COMBO! callout: the last move chained captures through Same/Plus waves
+            if (vm.lastFlips.any { it.cause == FlipCause.combo }) {
+                Text("COMBO!", color = Color(255, 190, 60), fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                     style = LocalTextStyle.current.copy(
+                         shadow = androidx.compose.ui.graphics.Shadow(
+                             color = Color(90, 45, 8), blurRadius = 10f,
+                             offset = androidx.compose.ui.geometry.Offset(2f, 2f))),
+                     modifier = Modifier.padding(bottom = 4.dp))
+            }
+
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
 
                 BoardCells(state = state, lastFlips = vm.lastFlips,
@@ -857,6 +867,7 @@ fun CampaignVersusScreen(catalog: Map<String, CardDef>, cleared: List<Int>,
     }
     val ruleNames = buildList {
         if (opp.same) add("SAME"); if (opp.plus) add("PLUS")
+        if (opp.combo && (opp.same || opp.plus)) add("COMBO")
         if (opp.sameWall) add("SAME WALL"); if (opp.elemental) add("ELEMENTAL")
     }
     Box(Modifier.fillMaxSize()) {

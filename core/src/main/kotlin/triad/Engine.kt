@@ -86,25 +86,29 @@ object Engine {
         var work = board
         (basic + special).forEach { work = work.withOwner(it.cell, me) }
 
+        // the combo cascade: Same/Plus captures turn a card, and its newly facing
+        // sides attack their own neighbors, wave after wave. Gated on rules.combo.
         val combo = mutableListOf<Flip>()
-        var frontier = special.map { it.cell }
-        var wave = 1
-        while (frontier.isNotEmpty()) {
-            val next = mutableListOf<Int>()
-            for (src in frontier) {
-                for (side in Side.entries) {
-                    val dst = neighborIndex(src, side) ?: continue
-                    val target = work[dst].card ?: continue
-                    if (target.owner == me) continue
-                    if (effAt(work, src, side) > effAt(work, dst, side.opposite)) {
-                        work = work.withOwner(dst, me)
-                        combo += Flip(dst, FlipCause.combo, wave)
-                        next += dst
+        if (rules.combo) {
+            var frontier = special.map { it.cell }
+            var wave = 1
+            while (frontier.isNotEmpty()) {
+                val next = mutableListOf<Int>()
+                for (src in frontier) {
+                    for (side in Side.entries) {
+                        val dst = neighborIndex(src, side) ?: continue
+                        val target = work[dst].card ?: continue
+                        if (target.owner == me) continue
+                        if (effAt(work, src, side) > effAt(work, dst, side.opposite)) {
+                            work = work.withOwner(dst, me)
+                            combo += Flip(dst, FlipCause.combo, wave)
+                            next += dst
+                        }
                     }
                 }
+                frontier = next
+                wave++
             }
-            frontier = next
-            wave++
         }
         return basic + special + combo
     }
