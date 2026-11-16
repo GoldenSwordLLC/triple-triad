@@ -551,7 +551,8 @@ fun SinglePlayerScreen(
                             campaign.rewardIds.forEach { id ->
                                 catalog[id]?.let {
                                     CardThumb(it, conflict = false, owner = Owner.blue,
-                                              modifier = Modifier.weight(1f).aspectRatio(CardSheets.ASPECT))
+                                              modifier = Modifier.weight(1f, fill = false)
+                                                  .widthIn(max = 64.dp).aspectRatio(CardSheets.ASPECT))
                                 }
                             }
                         }
