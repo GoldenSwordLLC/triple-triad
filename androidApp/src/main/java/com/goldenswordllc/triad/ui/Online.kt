@@ -32,6 +32,7 @@ import triad.core.CardDef
 import triad.net.ColorPref
 import triad.core.GameState
 import triad.core.MatchSettings
+import triad.core.Rules
 import triad.core.Owner
 import triad.core.maxLoss
 import triad.net.P2pSession
@@ -110,6 +111,7 @@ fun OnlineHostScreen(
     val code by vm.code.collectAsState()
     val session by vm.session.collectAsState()
     val error by vm.error.collectAsState()
+    var rules by remember { mutableStateOf(Rules()) }
 
     Box(Modifier.fillMaxSize()) {
         MatBackground(Modifier.matchParentSize(), dim = 0.24f)
@@ -167,7 +169,10 @@ fun OnlineHostScreen(
                             Text("HOST ONLINE", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(14.dp))
                             Spacer(Modifier.height(16.dp))
-                            GoldButton("HOST A ROOM  ▶", filled = true) { vm.start(MatchSettings()) }
+                            RulesPicker(rules = rules, onToggle = { i -> rules = rules.toggled(i) },
+                                        modifier = Modifier.align(Alignment.CenterHorizontally))
+                            Spacer(Modifier.height(14.dp))
+                            GoldButton("HOST A ROOM  ▶", filled = true) { vm.start(MatchSettings(rules = rules)) }
                             error?.let {
                                 Spacer(Modifier.height(8.dp))
                                 Text("ERROR: $it", color = Color(255, 120, 100), fontWeight = FontWeight.Bold)

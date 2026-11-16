@@ -246,6 +246,39 @@ fun RulesSummary(s: MatchSettings) {
     }
 }
 
+fun Rules.toggled(index: Int): Rules = when (index) {
+    0 -> copy(same = !same)
+    1 -> copy(plus = !plus)
+    2 -> copy(sameWall = !sameWall)
+    else -> copy(elemental = !elemental)
+}
+
+/** Host-side toggles for the four optional match rules. */
+@Composable
+fun RulesPicker(rules: Rules, onToggle: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val labels = listOf("SAME", "PLUS", "SAME WALL", "ELEMENT")
+    val flags = listOf(rules.same, rules.plus, rules.sameWall, rules.elemental)
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        for (row in 0..1) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                for (col in 0..1) {
+                    val i = row * 2 + col
+                    val on = flags[i]
+                    Box(Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (on) Color(0xFFD4AF37) else Color(30, 22, 8).copy(alpha = 0.85f))
+                        .border(if (on) 2.dp else 1.dp, Color(0xFFD4AF37), RoundedCornerShape(10.dp))
+                        .clickable { onToggle(i) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)) {
+                        Text(labels[i], color = if (on) Color(55, 38, 10) else Color(255, 240, 200),
+                             fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun DeckVerifyBody(view: DeckVerificationView, awaitingPeer: Boolean, onReady: () -> Unit,
                    onDecline: () -> Unit, transportNote: String? = null) {

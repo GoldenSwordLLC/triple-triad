@@ -22,6 +22,7 @@ import triad.core.addCards
 import triad.core.expertThreats
 import triad.core.withGameMemory
 import triad.core.Campaign
+import triad.core.Rules
 import triad.core.Owner
 import triad.core.PlayerSave
 import triad.core.withRecord
@@ -101,7 +102,8 @@ private sealed interface Screen {
     data object Credits : Screen
     data object Decks : Screen
     data object Multiplayer : Screen
-    data class Game(val difficulty: String, val redDeck: List<CardDef>? = null) : Screen
+    data class Game(val difficulty: String, val redDeck: List<CardDef>? = null,
+                    val rules: Rules = Rules()) : Screen
     data class Versus(val fight: Campaign.Fight) : Screen
     data class PassRedPick(val blueDeck: List<CardDef>) : Screen
     data object Collection : Screen
@@ -271,7 +273,7 @@ class MainActivity : ComponentActivity() {
                         }
                         PassRedDeckScreen(
                             pool = pool,
-                            onReady = { red -> screen = Screen.Game("pass", redDeck = red) },
+                            onReady = { red, rules -> screen = Screen.Game("pass", redDeck = red, rules = rules) },
                             onBack = { screen = Screen.Multiplayer },
                         )
                     }
@@ -324,6 +326,7 @@ class MainActivity : ComponentActivity() {
                             SinglePlayerScreen(
                                 catalog = catalog,
                                 difficulty = "campaign",
+                                rules = s.rules,
                                 myDeck = blueDeck,
                                 campaign = fight,
                                 aiBudgetMs = fight.aiBudgetMs,
@@ -374,6 +377,7 @@ class MainActivity : ComponentActivity() {
                         SinglePlayerScreen(
                             catalog = catalog,
                             difficulty = s.difficulty,
+                            rules = s.rules,
                             myDeck = blueDeck,
                             redDeck = redDeck,
                             threats = expertThreats(save.value) + save.value.expertBeatenWith,

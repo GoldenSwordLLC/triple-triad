@@ -222,6 +222,7 @@ class SPGameViewModel(
     private val myDeck: List<CardDef>,
     val redDeck: List<CardDef>? = null,
     val campaign: Campaign.Fight? = null,
+    val rules: Rules = Rules(),
     private val threats: Set<String> = emptySet(),
     private val beatenCards: List<CardDef> = emptyList(),
     private val aiBudgetMs: Long = 900L,
@@ -277,7 +278,11 @@ class SPGameViewModel(
         else null
         generation++
         return GameState(
-            board = Board(List(9) { Cell() }),
+            board = Board(List(9) {
+            if (rules.elemental && (0..4).random() == 0)
+                Cell(element = Element.entries[(1..8).random()])
+            else Cell()
+        }),
             blueHand = myDeck.shuffled(),
             redHand = when {
                 difficulty == "expert" -> counterDeck()
@@ -285,7 +290,7 @@ class SPGameViewModel(
                 else -> sample(aiRange)
             },
             turn = turn,
-            rules = Rules(),
+            rules = rules,
         )
     }
 
@@ -401,6 +406,7 @@ fun SinglePlayerScreen(
     myDeck: List<CardDef>,
     redDeck: List<CardDef>? = null,
     campaign: Campaign.Fight? = null,
+    rules: Rules = Rules(),
     threats: Set<String> = emptySet(),
     beatenCards: List<CardDef> = emptyList(),
     aiBudgetMs: Long = 900L,
@@ -417,8 +423,8 @@ fun SinglePlayerScreen(
     val sittingThreats = remember { threats }
     val sittingBeaten = remember { beatenCards }
     val sittingBudget = remember { aiBudgetMs }
-    val vm = remember(catalog, difficulty, myDeck, redDeck, campaign) {
-        SPGameViewModel(catalog, difficulty, myDeck, redDeck, campaign, sittingThreats, sittingBeaten, sittingBudget,
+    val vm = remember(catalog, difficulty, myDeck, redDeck, campaign, rules) {
+        SPGameViewModel(catalog, difficulty, myDeck, redDeck, campaign, rules, sittingThreats, sittingBeaten, sittingBudget,
                         { won, drawn -> onRecord(won, drawn) }, onMemory)
     }
     var packClaimed by remember(vm.generation) { mutableStateOf(false) }

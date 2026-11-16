@@ -36,6 +36,7 @@ import kotlinx.coroutines.*
 import triad.core.CardDef
 import triad.core.GameState
 import triad.core.MatchSettings
+import triad.core.Rules
 import triad.core.Owner
 import triad.net.ColorPref
 import triad.net.P2pSession
@@ -70,6 +71,7 @@ fun HostLobbyScreen(
     val error by vm.error.collectAsState()
     val transport by vm.transport.collectAsState()
     var started by remember { mutableStateOf(false) }
+    var rules by remember { mutableStateOf(Rules()) }
 
     val context = LocalContext.current
     val btAdapter = remember {
@@ -83,7 +85,7 @@ fun HostLobbyScreen(
     fun begin(bleEnabled: Boolean) {
         started = true
         vm.start(
-            settings = MatchSettings(),
+            settings = MatchSettings(rules = rules),
             me = P2pSession.PlayerLocal(myDeckIds, emptyList(), ColorPref.any),
             bleEnabled = bleEnabled,
         )
@@ -189,6 +191,12 @@ fun HostLobbyScreen(
                                horizontalAlignment = Alignment.CenterHorizontally,
                                verticalArrangement = Arrangement.Center) {
                             Text("HOST A MATCH", color = P2pCream, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(14.dp))
+                            Text("MATCH RULES, optional", color = Color(230, 205, 160), fontSize = 11.sp,
+                                 fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+                            Spacer(Modifier.height(6.dp))
+                            RulesPicker(rules = rules, onToggle = { i -> rules = rules.toggled(i) },
+                                        modifier = Modifier.align(Alignment.Start))
                             Spacer(Modifier.height(14.dp))
                     Spacer(Modifier.height(14.dp))
                     GoldButton("SHOW QR  ▶", filled = true) {

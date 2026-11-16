@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import triad.core.Rules
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,10 +32,11 @@ private val PrDim = Color(190, 175, 145)
 @Composable
 fun PassRedDeckScreen(
     pool: List<CardDef>,
-    onReady: (List<CardDef>) -> Unit,
+    onReady: (List<CardDef>, Rules) -> Unit,
     onBack: () -> Unit,
 ) {
     val picked = remember { mutableStateListOf<CardDef>() }
+    var rules by remember { mutableStateOf(Rules()) }
     fun toggle(c: CardDef) {
         if (picked.any { it.id == c.id }) picked.removeAll { it.id == c.id }
         else if (picked.size < 5) picked.add(c)
@@ -46,6 +48,9 @@ fun PassRedDeckScreen(
             Text("RED, BUILD YOUR HAND", color = PrGoldText, fontSize = 20.sp, fontWeight = FontWeight.Bold,
                  modifier = Modifier.padding(vertical = 8.dp))
             Text("pass the phone to the red player", color = PrDim, fontSize = 10.sp)
+            Spacer(Modifier.height(10.dp))
+            Text("MATCH RULES, optional", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            RulesPicker(rules = rules, onToggle = { i -> rules = rules.toggled(i) })
 
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -102,7 +107,7 @@ fun PassRedDeckScreen(
                          .padding(vertical = 12.dp))
                 GoldAction(if (picked.size == 5) "START  ▶" else "PICK ${5 - picked.size} MORE",
                     filled = true, enabled = picked.size == 5, modifier = Modifier.weight(2f)) {
-                    onReady(picked.toList())
+                    onReady(picked.toList(), rules)
                 }
             }
         }
