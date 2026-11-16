@@ -30,7 +30,7 @@ G- 29    SAM08G                               Monster     3     Fire       5  4 
 G- 30    Death Claw                           Monster     3     Fire       4  2  4  7    Common          1    Sharp Spike x1
 G- 31    Cactuar                              Monster     3                6  3  2  6    Common          1    Cactus Thorn x1
 G- 32    Tonberry                             Monster     3                3  4  6  4    Common          1    Chef's Knife x1
-G- 33    Abyss Worm                           Monster     3     Earth      7  5  2  3    Common          1    Dino Bone x1
+G- 33    Abyss Worm                           Monster     3     Earth      7  5  3  2    Common          1    Dino Bone x1
 G- 34    Turtapod                             Monster     4                2  7  3  6    Common          5    Healing Mail x1
 G- 35    Vysage                               Monster     4                6  5  5  4    Common          1    Wizard Stone x1
 G- 36    T- Rexsaur                           Monster     4                4  7  6  2    Common          2    Dino Bone x2
@@ -51,7 +51,7 @@ G- 50    GIM47N                               Monster     5                5  4 
 G- 51    Malboro                              Monster     5     Poison     7  2  7  4    Common          4    Malboro Tentacle x1
 G- 52    Ruby Dragon                          Monster     5     Fire       7  4  2  7    Common         10    Inferno Fang x1
 G- 53    Elnoyle                              Monster     5                5  6  3  7    Common         10    Energy Crystal x1
-G- 54    Tonberry King                        Monster     5                7  4  6  7    Common          1    Chef's Knife x1
+G- 54    Tonberry King                        Monster     5                4  4  6  7    Common          1    Chef's Knife x1
 G- 55    Wedge/Biggs                          Monster     5                6  7  6  2    Common          1    X- Potion x1
 G- 56    Fujin/Raijin                         Boss        6                2  4  8  8    Common          1    X- Potion x1
 G- 57    Elvoret                              Boss        6     Wind       7  4  8  3    Common          1    Death Stone x10

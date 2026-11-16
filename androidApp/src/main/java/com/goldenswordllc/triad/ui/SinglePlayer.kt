@@ -474,8 +474,11 @@ fun SinglePlayerScreen(
                     state.isOver -> "MATCH OVER" to Color(70, 60, 40)
                     vm.passAndPlay -> if (state.turn == Owner.blue) "BLUE'S TURN" to FrameBlue
                                       else "RED'S TURN" to FrameRed
-                    vm.aiThinking -> (if (campaign != null) campaign.name.uppercase() + " IS THINKING…"
-                                      else "AI IS THINKING…") to Color(70, 60, 40)
+                    vm.aiThinking -> {
+                        val who = campaign?.name?.uppercase() ?: "AI"
+                        val be = if (" & " in who) "ARE" else "IS"
+                        "$who $be THINKING…" to Color(70, 60, 40)
+                    }
                     state.turn == Owner.blue -> "YOUR TURN" to FrameBlue
                     else -> "OPPONENT'S TURN" to Color(70, 60, 40)
                 }

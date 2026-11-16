@@ -51,7 +51,7 @@ fun pin(name: String, t: Int, r: Int, b: Int, l: Int) {
 pin("Ruby Dragon", 7, 2, 7, 4)
 pin("Pandemona", 10, 1, 7, 7)
 pin("Shumi Tribe", 6, 5, 8, 4)
-pin("Tonberry King", 7, 6, 7, 4)
+pin("Tonberry King", 4, 6, 7, 4)
 
 val sorted = cards.sortedBy { it.no }
 File(args[1]).parentFile.mkdirs()
