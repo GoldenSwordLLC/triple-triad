@@ -3,14 +3,29 @@
 Dual-native: Kotlin/Jetpack Compose (Android) + Swift/SwiftUI (iOS), two independent
 rule engines kept in lockstep by a shared JSON parity-test suite. P2P multiplayer
 (QR join over LAN TCP or Bluetooth LE) with no server, plus online play at any
-distance through a private relay. Single player vs AI with four tiers (Easy /
-Medium / Hard / Expert — Expert remembers what beats you), a card collection
-economy, packs, cross-phone trading, and a standalone trade room.
+distance through a private relay.
 
-**Status: Android is playable end to end** (single player, pass & play, two-phone
-Wi-Fi and Bluetooth matches, online relay matches, collection/decks/packs,
-post-match and standalone trading). The Swift core passes its parity tests; the
-SwiftUI app layer awaits its first Xcode compile.
+**Status: Android is playable end to end** — the Card Circuit campaign, pass & play,
+two-phone Wi-Fi and Bluetooth matches, and online relay matches. The Swift core
+passes its parity tests; the SwiftUI app layer awaits its first Xcode compile and
+does not yet mirror the campaign.
+
+## The Card Circuit (single player)
+
+A 51-fight campaign across 16 chapters. Each chapter is a mini-arc: lesser
+opponents (1–3, escalating with the chapter) building to a named boss. The run is
+linear — one fight is open at a time, and every first-clear win pays specific cards,
+so the whole 110-card catalog is collectible in single player alone.
+
+- Own cast of characters inspired by FF8's card-community figures; bosses carry
+  authored decks, dialogue, and portrait art; lessers use monogram plates.
+- Rules escalate as you climb: elemental cells from chapter 5, Same from 7,
+  Plus from 10, Same Wall from 14 — with every chapter's boss playing the full
+  chapter ruleset.
+- Replaying a defeated opponent drops one random card from their own deck.
+- The ladder is test-enforced: every fight is solvable with the arsenal the
+  campaign has paid out by that point, no lesser deck outguns its chapter boss,
+  and starter ∪ all rewards covers the entire catalog.
 
 ## Build
 
@@ -28,34 +43,37 @@ page; CI only runs the test suites. The iOS core also builds and tests on Linux
 
 | Path | Contents |
 |---|---|
-| `core/` | Pure-JVM engine: rules, AI, determinism, save model, P2P session + protocol |
+| `core/` | Pure-JVM engine: rules, AI, campaign ladder, save model, P2P session + protocol |
 | `androidApp/` | Compose app: screens, BLE transport, QR scanner, camera, art cache |
 | `ios/TriadCore/` | Swift engine mirror (parity-tested) |
 | `ios/TriadApp/` | SwiftUI app layer (pending first compile) |
-| `shared-data/` | JSON parity fixtures shared by both engines |
+| `shared-data/` | JSON parity fixtures + card catalog shared by both engines |
 | `tools/` | Catalog build/audit scripts |
 
-## Game rules (deliberate divergences from FF8)
+## Game rules
+
+Triple Triad's core: place a card, higher adjacent ranks capture. On top of that:
+
+- **Elemental** — some cells carry an element; a matching card gets +1 to all
+  ranks, a mismatched one −1. Green/red frames on placed cards show which.
+- **Same / Plus / Combo** — capture by matching both touching ranks (Same), by
+  equal sums on two pairs (Plus), and let captures cascade (Combo, the classic
+  FF8 chain behavior).
+- **Same Wall** — Same also applies to your own border wall.
+
+In every multiplayer mode the host picks the active rules from checkboxes
+(Same, Plus, Combo, Same Wall, Elemental); the joiner reviews them before the
+match, and the game shows the live ruleset throughout.
+
+Deliberate divergences from FF8:
 
 - **Board-only scoring, no draws.** Hands don't count; with 9 board cards a tie is
   impossible, so every match ends decisively (5/4 is a win for whoever holds 5).
 - **Single-instance decks.** A deck may contain each card at most once, regardless
   of owned copies.
 - **Decks are 5 cards.** The deck you bring is the hand you play.
-
-## Collection economy
-
-- Fixed deterministic starter (12 level-1 cards). Win single-player matches to earn
-  packs: Easy 3×(L1–3), Medium 4×(L2–6, one guaranteed L4+), Hard 3×(L3–10, one
-  guaranteed L7+, never the hidden five), Expert 2×(L9–10, one guaranteed hidden five).
-- The hidden five (Doomtrain, Edea, Rinoa, Squall, Seifer) drop ONLY from Expert packs.
-- Two-phone matches trade cards by the host's chosen rule (None/One/Direct/Diff/All);
-  entry requires ≥6 owned cards so a worst-case loss can never leave you deckless.
-- Standalone TRADE CARDS rooms (QR or room code, no match, no active deck needed)
-  swap offers freely on mutual accept; both sides enforce the 5-card floor, and
-  owned copies (×N) are visible in the collection and trade views.
-- Per-card drop rates are exact (computed from the pack draw structure) and shown in
-  the Collection screen; a test cross-checks them against sampled packs.
+- **Multiplayer is zero-stakes.** No card trading or wagers — collection progress
+  lives entirely in the campaign; matches are for the love of the game.
 
 ## Multiplayer protocol notes
 
@@ -65,7 +83,8 @@ Both phones derive identical match state from a shared seed:
    neither side can influence the deal after seeing the other's).
 2. Shared seed = `SHA-256(hostNonce + joinerNonce)`; a fixed PRNG (`SplitMix64`)
    then deals random hands identically on both devices, and decides colors.
-3. Declared decks are validated peer-to-peer (size, known cards, single-instance).
+3. Declared decks are validated peer-to-peer (size, known cards, single-instance),
+   and the host's chosen rules ride the same handshake to the joiner.
 4. The transport seam (`Wire`) has four implementations: TCP over LAN Wi-Fi,
    BLE GATT, TLS to the online relay, and loopback for tests. Hosts advertise
    both radios; joiners try TCP first (3s bound) and fall back to Bluetooth

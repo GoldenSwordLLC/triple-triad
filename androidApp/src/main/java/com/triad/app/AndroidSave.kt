@@ -2,13 +2,15 @@ package com.goldenswordllc.triad
 
 import android.content.Context
 import triad.core.PlayerSave
+import triad.core.decodeSave
+import triad.core.freshSave
 import triad.core.saveJson
 import java.io.File
 
 fun loadSave(context: Context): PlayerSave =
     File(context.filesDir, "save.json").takeIf { it.exists() }?.let {
-        runCatching { saveJson.decodeFromString<PlayerSave>(it.readText()) }.getOrNull()
-    } ?: PlayerSave()
+        runCatching { decodeSave(it.readText()) }.getOrNull()
+    } ?: freshSave()
 
 fun persist(context: Context, s: PlayerSave) {
     val dir = context.filesDir

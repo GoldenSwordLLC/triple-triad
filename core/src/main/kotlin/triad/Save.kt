@@ -9,8 +9,15 @@ data class NamedDeck(val id: String, val name: String, val ids: List<String>)
 @Serializable
 data class CardMemory(val played: Int = 0, val won: Int = 0)
 
+/** Bump to invalidate every existing save. The 1.0 decision was a hard wipe —
+ *  saves written before the bump decode with schema 0 and load as a fresh game,
+ *  no migration. Missing/unreadable files behave the same via [decodeSave]. */
+const val SAVE_SCHEMA = 1
+
 @Serializable
 data class PlayerSave(
+    /** 0 = written before the current schema (legacy) → wiped on load. */
+    val schema: Int = 0,
     val collection: Map<String, Int> = emptyMap(),
     val decks: List<NamedDeck> = emptyList(),
     val activeDeck: String? = null,
@@ -91,6 +98,15 @@ fun PlayerSave.applyTransfers(transfers: List<CardTransfer>, myColor: Owner): Pl
 }
 
 val saveJson = kotlinx.serialization.json.Json { prettyPrint = true; ignoreUnknownKeys = true }
+
+fun freshSave(): PlayerSave = PlayerSave(schema = SAVE_SCHEMA)
+
+/** The only sanctioned way to turn persisted text into a save: legacy payloads
+ *  (schema 0) and foreign-schema payloads load as a brand-new game. */
+fun decodeSave(text: String): PlayerSave =
+    runCatching { saveJson.decodeFromString<PlayerSave>(text) }.getOrNull()
+        ?.takeIf { it.schema == SAVE_SCHEMA }
+        ?: freshSave()
 
 fun PlayerSave.addCards(cards: List<CardDef>): PlayerSave {
     val c = collection.toMutableMap()
