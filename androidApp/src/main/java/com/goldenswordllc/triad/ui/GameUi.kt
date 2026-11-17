@@ -2,13 +2,17 @@ package com.goldenswordllc.triad.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.delay
 import triad.core.*
@@ -45,14 +49,25 @@ fun BoardCell(cellIndex: Int, cell: Cell, flips: List<Flip>,
             }
         }
     }
-    CardThumb(card.def, conflict = false, owner = displayed.value,
-              modifier = Modifier
-                  .fillMaxHeight()
-                  .aspectRatio(CardSheets.ASPECT)
-                  .combinedClickable(
-                      onClick = { onCardTap?.invoke() },
-                      onLongClick = { onInfo?.invoke(card.def, card.owner) })
-                  .graphicsLayer {
-                      rotationY = rotation.value
-                  })
+    // elemental frame edge: green = boosted (+1), red = penalized (−1) — mirrors Engine.effectiveValue
+    val elemFrame = when {
+        cell.element == Element.none -> null
+        card.def.element == cell.element -> Color(0xFF00E676)
+        else -> Color(0xFFFF1744)
+    }
+    Box(Modifier.fillMaxHeight().aspectRatio(CardSheets.ASPECT)) {
+        CardThumb(card.def, conflict = false, owner = displayed.value,
+                  modifier = Modifier
+                      .matchParentSize()
+                      .combinedClickable(
+                          onClick = { onCardTap?.invoke() },
+                          onLongClick = { onInfo?.invoke(card.def, card.owner) })
+                      .graphicsLayer {
+                          rotationY = rotation.value
+                      })
+        if (elemFrame != null) {
+            Box(Modifier.matchParentSize()
+                    .border(2.5.dp, elemFrame, RoundedCornerShape(12.dp)))
+        }
+    }
 }
