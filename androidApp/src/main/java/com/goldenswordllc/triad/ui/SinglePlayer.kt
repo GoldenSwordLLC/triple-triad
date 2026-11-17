@@ -501,8 +501,37 @@ fun SinglePlayerScreen(
                 }
             }
 
-            // COMBO! callout: the last move chained captures through Same/Plus waves
-            if (vm.lastFlips.any { it.cause == FlipCause.combo }) {
+            // persistent live rules line — the versus screen says the rules once,
+            // this keeps them on screen for the whole match
+            val activeRules = buildList {
+                if (state.rules.same) add("SAME")
+                if (state.rules.plus) add("PLUS")
+                if (state.rules.combo && (state.rules.same || state.rules.plus)) add("COMBO")
+                if (state.rules.sameWall) add("SAME WALL")
+                if (state.rules.elemental) add("ELEMENTAL")
+            }
+            Text(if (activeRules.isEmpty()) "NO SPECIAL RULES"
+                 else activeRules.joinToString(" · "),
+                 color = Color(230, 205, 160), fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                 modifier = Modifier.padding(top = 3.dp, bottom = 2.dp))
+
+            // capture callouts: say WHY cards just flipped — Same/Plus fire on
+            // equality (easy to misread as a bug), Combo marks chain waves
+            if (vm.lastFlips.any { it.cause == FlipCause.same }) {
+                Text("SAME!", color = Color(255, 190, 60), fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                     style = LocalTextStyle.current.copy(
+                         shadow = androidx.compose.ui.graphics.Shadow(
+                             color = Color(90, 45, 8), blurRadius = 10f,
+                             offset = androidx.compose.ui.geometry.Offset(2f, 2f))),
+                     modifier = Modifier.padding(bottom = 4.dp))
+            } else if (vm.lastFlips.any { it.cause == FlipCause.plus }) {
+                Text("PLUS!", color = Color(255, 190, 60), fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                     style = LocalTextStyle.current.copy(
+                         shadow = androidx.compose.ui.graphics.Shadow(
+                             color = Color(90, 45, 8), blurRadius = 10f,
+                             offset = androidx.compose.ui.geometry.Offset(2f, 2f))),
+                     modifier = Modifier.padding(bottom = 4.dp))
+            } else if (vm.lastFlips.any { it.cause == FlipCause.combo }) {
                 Text("COMBO!", color = Color(255, 190, 60), fontSize = 22.sp, fontWeight = FontWeight.Bold,
                      style = LocalTextStyle.current.copy(
                          shadow = androidx.compose.ui.graphics.Shadow(
