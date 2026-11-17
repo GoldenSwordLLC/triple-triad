@@ -20,7 +20,6 @@ public enum Element: String, Codable, Hashable, CaseIterable {
 }
 
 public enum CardType: String, Codable, Hashable { case monster, boss, gf, character }
-public enum TradeRule: String, Codable, Hashable { case none, one, direct, diff, all }
 
 public struct CardDef: Hashable {
     public let id: String, name: String, level: Int, element: Element
@@ -95,11 +94,10 @@ public struct MatchSettings: Codable, Hashable, Sendable {
     public var open = true
     public var randomHands = false
     public var suddenDeath = false
-    public var trade = TradeRule.none
     public init(rules: Rules = Rules(), open: Bool = true, randomHands: Bool = false,
-                suddenDeath: Bool = false, trade: TradeRule = .none) {
+                suddenDeath: Bool = false) {
         self.rules = rules; self.open = open; self.randomHands = randomHands
-        self.suddenDeath = suddenDeath; self.trade = trade
+        self.suddenDeath = suddenDeath
     }
 }
 
@@ -129,11 +127,6 @@ public struct Flip: Hashable, Codable { public let cell: Int; public let cause: 
     } }
 public struct PlacementResult { public let state: GameState; public let flips: [Flip]
     public init(state: GameState, flips: [Flip]) { self.state = state; self.flips = flips } }
-
-public struct CardTransfer: Hashable, Sendable { public let card: CardDef; public let from: Owner; public let to: Owner
-    public init(card: CardDef, from: Owner, to: Owner) { self.card = card; self.from = from; self.to = to } }
-public struct PendingPick: Sendable { public let count: Int; public let candidates: [CardDef]
-    public init(count: Int, candidates: [CardDef]) { self.count = count; self.candidates = candidates } }
 
 public enum Engine {
     private static let wall = 10

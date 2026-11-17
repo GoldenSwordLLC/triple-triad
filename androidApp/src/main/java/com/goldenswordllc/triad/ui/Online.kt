@@ -34,7 +34,6 @@ import triad.core.GameState
 import triad.core.MatchSettings
 import triad.core.Rules
 import triad.core.Owner
-import triad.core.maxLoss
 import triad.net.P2pSession
 
 const val RELAY_HOST = "triad.goldenswordllc.com"

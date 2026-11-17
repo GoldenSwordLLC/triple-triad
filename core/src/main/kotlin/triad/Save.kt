@@ -88,15 +88,6 @@ fun expertThreats(save: PlayerSave, minPlays: Int = 3, minWinRate: Double = 0.5,
             .thenByDescending { it.value.played })
         .take(limit).map { it.key }.toSet()
 
-fun PlayerSave.applyTransfers(transfers: List<CardTransfer>, myColor: Owner): PlayerSave {
-    val c = collection.toMutableMap()
-    transfers.forEach { t ->
-        if (t.to == myColor) c[t.card.id] = (c[t.card.id] ?: 0) + 1
-        if (t.from == myColor) c[t.card.id] = ((c[t.card.id] ?: 1) - 1).coerceAtLeast(0)
-    }
-    return copy(collection = c)
-}
-
 val saveJson = kotlinx.serialization.json.Json { prettyPrint = true; ignoreUnknownKeys = true }
 
 fun freshSave(): PlayerSave = PlayerSave(schema = SAVE_SCHEMA)

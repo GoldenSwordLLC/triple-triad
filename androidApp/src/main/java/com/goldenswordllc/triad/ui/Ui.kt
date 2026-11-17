@@ -31,7 +31,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import triad.core.*
-import triad.core.maxLoss
 import triad.net.*
 
 @Composable
@@ -129,16 +128,7 @@ fun PreMatchScreen(vm: PreMatchViewModel, onExit: () -> Unit, myCardCount: Int =
         is PreMatchUi.Connected -> WaitingPane("Connected to ${s.peer}…", onExit)
         is PreMatchUi.AwaitingAccept -> WaitingPane("${s.peer} is reviewing the rules…", onExit)
         is PreMatchUi.RulesReview -> {
-
-            val risk = s.settings.trade.let { t ->
-                if (myCardCount - t.maxLoss() < 5)
-                    "⚠ These rules can take up to ${t.maxLoss()} cards if you lose, that could leave you " +
-                    "without a deck. Decline unless you're willing to risk it."
-                else null
-            }
-            val blocked = risk != null
-            RulesReviewBody(s, vm::accept, vm::decline, riskNote = risk,
-                            acceptBlocked = blocked, transportNote = transportNote)
+            RulesReviewBody(s, vm::accept, vm::decline, transportNote = transportNote)
         }
         is PreMatchUi.Verify -> DeckVerifyBody(s.view, s.awaitingPeer, vm::ready, vm::decline, transportNote)
         is PreMatchUi.Ended -> WaitingPane(s.reason, onExit)
@@ -241,8 +231,6 @@ fun RulesSummary(s: MatchSettings) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text("Rules: ${active.joinToString(" + ")}", color = Color(245, 238, 220))
         Text("Hands: ${if (s.open) "Open" else "Closed"}${if (s.randomHands) " + Random" else ""}",
-             color = Color(245, 238, 220))
-        Text("Trade: ${s.trade.name}${if (s.suddenDeath) " + Sudden Death" else ""}",
              color = Color(245, 238, 220))
     }
 }
@@ -399,9 +387,6 @@ fun ElementIcon(element: Element, color: Color, modifier: Modifier = Modifier) {
 
 data class ResultState(
     val outcome: SessionEvent.Outcome,
-    val transfers: List<CardTransfer> = emptyList(),
-    val awaitingPeerPick: Boolean = false,
-    val applied: Boolean = false,
 )
 
 @Composable
@@ -433,16 +418,8 @@ fun MatchResultScreen(state: ResultState, myColor: Owner, onDone: () -> Unit,
                 Text(label, Modifier.padding(vertical = 20.dp), color = Color.White,
                      style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
             }
-            if (state.awaitingPeerPick) {
-                Text("Opponent is choosing a card to take…", color = Color(255, 240, 200),
-                     modifier = Modifier.align(Alignment.CenterHorizontally))
-            }
-            val gained = state.transfers.filter { it.to == myColor }.map { it.card }
-            val lost = state.transfers.filter { it.from == myColor }.map { it.card }
-            if (gained.isNotEmpty()) TransferRow("Cards gained", gained, owner = myColor.other)
-            if (lost.isNotEmpty()) TransferRow("Cards lost", lost, owner = myColor)
             Spacer(Modifier.weight(1f))
-            if (onRematch != null && !state.awaitingPeerPick && !state.applied) {
+            if (onRematch != null) {
                 Text("REMATCH", color = Color(255, 240, 200), fontWeight = FontWeight.Bold,
                      textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()
                          .clip(RoundedCornerShape(12.dp))

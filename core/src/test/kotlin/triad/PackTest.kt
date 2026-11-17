@@ -50,18 +50,4 @@ class PackTest {
         assertEquals(2, save.collection[card.id])
         assertEquals(1, save.collection[catalog[1].id])
     }
-
-    @Test fun `transfers move copies both directions`() {
-        val mine = catalog[0]
-        val theirs = catalog[5]
-        var save = PlayerSave(collection = mapOf(mine.id to 1))
-        save = save.applyTransfers(
-            listOf(
-                CardTransfer(theirs, from = Owner.red, to = Owner.blue),
-                CardTransfer(mine, from = Owner.blue, to = Owner.red),
-            ),
-            myColor = Owner.blue)
-        assertEquals(1, save.collection[theirs.id])
-        assertEquals(0, save.collection[mine.id])
-    }
 }

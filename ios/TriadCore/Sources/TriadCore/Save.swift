@@ -124,19 +124,6 @@ public struct PlayerSave: Codable, Hashable {
                           cardMemory: cardMemory, expertStreak: expertStreak,
                           expertBeatenWith: expertBeatenWith, expertWonDecks: expertWonDecks)
     }
-
-    public func applyTransfers(_ transfers: [CardTransfer], myColor: Owner) -> PlayerSave {
-        var c = collection
-        for t in transfers {
-            if t.to == myColor { c[t.card.id, default: 0] += 1 }
-            if t.from == myColor { c[t.card.id] = max(0, (c[t.card.id] ?? 1) - 1) }
-        }
-        return PlayerSave(collection: c, decks: decks, activeDeck: activeDeck,
-                          neverUse: neverUse, neverFace: neverFace,
-                          wins: wins, losses: losses, draws: draws, tutorialSeen: tutorialSeen,
-                          cardMemory: cardMemory, expertStreak: expertStreak,
-                          expertBeatenWith: expertBeatenWith, expertWonDecks: expertWonDecks)
-    }
 }
 
 // MARK: - Deck validation
@@ -159,19 +146,6 @@ public func validateDeck(deck: [String], catalog: Set<String>, collection: [Stri
         if enforceBans && neverUse.contains(id) { errors.append(.banned(id: id)) }
     }
     return errors
-}
-
-// MARK: - Trade risk (host gating + joiner warnings)
-
-public extension TradeRule {
-    /// Worst-case cards a player can lose in one match (brought = hand size).
-    var maxLoss: Int {
-        switch self {
-        case .none: return 0
-        case .one: return 1
-        case .direct, .diff, .all: return 5
-        }
-    }
 }
 
 // MARK: - Campaign packs (mirrors Kotlin rollPack)

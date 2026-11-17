@@ -42,7 +42,7 @@ final class ParityTests: XCTestCase {
         var r = SplitMix64(seed: seedFromHex(fx.seedHex))
         let coin = r.nextInt(2)
         var cells: [Int] = []
-        for _ in 0..<9 { cells.append(fx.elemental && r.nextInt(5) == 0 ? r.nextInt(9) + 1 : 0) }
+        for _ in 0..<9 { cells.append(fx.elemental && r.nextInt(5) == 0 ? r.nextInt(8) + 1 : 0) }   // the 8 playable elements; dark has no cards or sigil
         let blueSample = fx.randomHands ? r.sample5(fx.pool) : Array(fx.pool.prefix(5))
         let redSample  = fx.randomHands ? r.sample5(fx.pool) : Array(fx.pool.prefix(5))
         let first = r.nextInt(2)

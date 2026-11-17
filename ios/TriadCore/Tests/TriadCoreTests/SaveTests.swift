@@ -32,25 +32,12 @@ final class SaveTests: XCTestCase {
         }
     }
 
-    func testTradeMaxLoss() {
-        XCTAssertEqual(TradeRule.none.maxLoss, 0)
-        XCTAssertEqual(TradeRule.one.maxLoss, 1)
-        XCTAssertEqual(TradeRule.all.maxLoss, 5)
-        XCTAssertEqual(TradeRule.diff.maxLoss, 5)
-        XCTAssertEqual(TradeRule.direct.maxLoss, 5)
-    }
-
-    func testAddCardsAndTransfers() {
+    func testAddCardsStacksCopies() {
         let cat = catalog()
         var save = PlayerSave()
         save = save.addCards([cat[0], cat[0], cat[1]])
         XCTAssertEqual(save.collection[cat[0].id], 2)
-        save = save.applyTransfers([
-            CardTransfer(card: cat[5], from: .red, to: .blue),
-            CardTransfer(card: cat[0], from: .blue, to: .red),
-        ], myColor: .blue)
-        XCTAssertEqual(save.collection[cat[5].id], 1)
-        XCTAssertEqual(save.collection[cat[0].id], 1)
+        XCTAssertEqual(save.collection[cat[1].id], 1)
     }
 
     func testValidateDeck() {

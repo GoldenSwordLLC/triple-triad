@@ -12,7 +12,6 @@ enum Message: Sendable {
     case deck(ids: [String], bans: [String], pref: ColorPref)
     case deckAck
     case move(handIndex: Int, cell: Int, card: String, seq: Int, hash: String)
-    case tradePick(ids: [String])
     case rematch
     case resign
     case error(code: String, detail: String)
@@ -43,7 +42,6 @@ extension Message: Codable {
                                        card: try c.decode(String.self, forKey: .card),
                                        seq: try c.decode(Int.self, forKey: .seq),
                                        hash: try c.decode(String.self, forKey: .hash))
-        case "tradePick": self = .tradePick(ids: try c.decode([String].self, forKey: .ids))
         case "resign":    self = .resign
         case "error":     self = .error(code: try c.decode(String.self, forKey: .code),
                                         detail: try c.decodeIfPresent(String.self, forKey: .detail) ?? "")
@@ -74,8 +72,6 @@ extension Message: Codable {
             try c.encode(handIndex, forKey: .handIndex); try c.encode(cell, forKey: .cell)
             try c.encode(card, forKey: .card); try c.encode(seq, forKey: .seq)
             try c.encode(hash, forKey: .hash)
-        case let .tradePick(ids):
-            try c.encode("tradePick", forKey: .type); try c.encode(ids, forKey: .ids)
         case .rematch: try c.encode("rematch", forKey: .type)
         case .resign: try c.encode("resign", forKey: .type)
         case let .error(code, detail):

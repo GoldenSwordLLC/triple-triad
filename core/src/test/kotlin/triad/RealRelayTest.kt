@@ -67,7 +67,7 @@ class RealRelayTest {
                 assertTrue(Regex("^[2-9]{2}[A-HJ-KM-NP-Z]{2}[2-9]{2}$").matches(code), "code shape: $code")
                 val host = P2pSession(hostWire, isHost = true, myName = "Host", token = code,
                     catalog = catalog, me = P2pSession.PlayerLocal((1..5).map { "c$it" }, emptyList(), ColorPref.any),
-                    hostSettings = MatchSettings(trade = TradeRule.none))
+                    hostSettings = MatchSettings())
 
                 val sloppy = code.lowercase().chunked(2).joinToString(" ")
                 val joinWire = joinRelay("127.0.0.1", port, sloppy, scope, testVer)

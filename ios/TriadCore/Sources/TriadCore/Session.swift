@@ -22,14 +22,13 @@ enum SessionEvent: Sendable {
     case moveApplied(flips: [Flip], state: GameState)
     case rematchStarted(state: GameState, myColor: Owner)
     case gameOver(outcome: Outcome)
-    case tradeResolved(transfers: [CardTransfer])
     case forfeit(winner: Owner, reason: String)
     case declined(detail: String)
     case disconnected(detail: String)
     case protocolError(code: String, detail: String)
 
     enum Outcome: Sendable {
-        case won(transfers: [CardTransfer], pendingPick: PendingPick?)
+        case won
         case lost
         case drawn
     }
@@ -101,7 +100,6 @@ actor P2pSession {
     private var referee: DeckReferee?
     private var broughtBlue: [CardDef] = []
     private var broughtRed: [CardDef] = []
-    private var pendingPick: PendingPick?
     private var concluded = false   // GameOver delivered — a socket close now is cleanup, not an error
     private var rematchCount = 0
     private var myAckSent = false
@@ -213,9 +211,6 @@ actor P2pSession {
         case let .move(handIndex, cell, card, seq, hash):
             try onPeerMove(handIndex: handIndex, cell: cell, card: card, seq: seq, hash: hash)
 
-        case let .tradePick(ids):
-            try onTradePick(ids)
-
         case .rematch:
             // unilateral restart, both sides rebuild identically from a fresh
             // seed derived from the original handshake nonces (no second commit/reveal)
@@ -256,7 +251,7 @@ actor P2pSession {
     // MARK: - determinism contract (identical to the Kotlin session)
     // Round 1, seed = SplitMix64(first 16 hex of SHA-256(hostNonce ‖ joinerNonce)):
     //   1. color coin — nextInt(2), ALWAYS consumed
-    //   2. if elemental: cells 0..8, each: nextInt(5); if 0 → nextInt(9)+1 (Element ordinal)
+    //   2. if elemental: cells 0..8, each: nextInt(5); if 0 → nextInt(8)+1 (the 8 playable elements; dark has no cards or sigil)
     //   3. if randomHands: BLUE's pool sampled (5 × nextInt(remaining)), then RED's
     //   4. first player — nextInt(2)
     // Round r>1: seed = SplitMix64(first 16 hex of SHA-256(seedHex + ":" + r)); only step 2.
@@ -271,7 +266,7 @@ actor P2pSession {
         let st = settings!
         var cells: [Cell] = []
         for _ in 0..<9 {
-            if st.rules.elemental && r.nextInt(5) == 0 { cells.append(Cell(element: Element.allCases[r.nextInt(9) + 1])) }
+            if st.rules.elemental && r.nextInt(5) == 0 { cells.append(Cell(element: Element.allCases[r.nextInt(8) + 1])) }
             else { cells.append(Cell()) }
         }
         let hostPool = isHost ? me.deckIds : peerDeck!.ids
@@ -370,76 +365,17 @@ actor P2pSession {
         if res.state.isOver { resolveEnd() }
     }
 
-    // MARK: - endgame, trades, sudden death
+    // MARK: - endgame, sudden death
 
     private func resolveEnd() {
-        guard let s = state, let st = settings else { return }
+        guard let s = state else { return }
         let blue = s.score(.blue), red = s.score(.red)
         // Board-only scoring: 9 board cards can never split evenly — there is always a winner.
         let winner: Owner = blue > red ? .blue : .red
         concluded = true
-        do {
-            let iWon = winner == myColor
-            let loserBrought = winner == .blue ? broughtRed : broughtBlue
-            switch st.trade {
-            case .direct:   // originalOwner is public — no messages
-                let t = s.board.cells.compactMap { $0.card }
-                    .filter { $0.owner != $0.originalOwner }
-                    .map { CardTransfer(card: $0.def, from: $0.originalOwner, to: $0.owner) }
-                eventsCont.yield(.gameOver(outcome: iWon ? .won(transfers: t, pendingPick: nil) : .lost))
-                eventsCont.yield(.tradeResolved(transfers: t))
-            case .none:
-                eventsCont.yield(.gameOver(outcome: iWon ? .won(transfers: [], pendingPick: nil) : .lost))
-            default:
-                let n: Int
-                switch st.trade {
-                case .one: n = 1
-                case .diff: n = min(abs(blue - red), loserBrought.count)
-                default: n = loserBrought.count
-                }
-                if iWon {
-                    pendingPick = PendingPick(count: n, candidates: loserBrought)
-                    eventsCont.yield(.gameOver(outcome: .won(transfers: [], pendingPick: pendingPick)))
-                } else {
-                    eventsCont.yield(.gameOver(outcome: .lost))
-                }
-            }
-        }
+        let iWon = winner == myColor
+        eventsCont.yield(.gameOver(outcome: iWon ? .won : .lost))
     }
-
-    public func tradePick(_ ids: [String]) {          // winner side
-        guard !done, let p = pendingPick else { return }
-        let counts = Dictionary(grouping: p.candidates.map(\.id), by: { $0 }).mapValues(\.count)
-        let picked = Dictionary(grouping: ids, by: { $0 }).mapValues(\.count)
-        guard ids.count == p.count,
-              picked.allSatisfy({ (counts[$0.key] ?? 0) >= $0.value }) else { return }
-        send(.tradePick(ids: ids))
-        pendingPick = nil
-        eventsCont.yield(.tradeResolved(
-            transfers: ids.map { CardTransfer(card: catalog[$0]!, from: myColor.other, to: myColor) }))
-    }
-
-    private func onTradePick(_ ids: [String]) throws {   // loser side: validate their pick
-        guard let s = state else { try fault("protocol", "trade before match") }
-        guard s.isOver else { try fault("protocol", "trade while playing") }
-        let blue = s.score(.blue), red = s.score(.red)
-        let winner: Owner = blue > red ? .blue : .red
-        guard winner == myColor.other else { try fault("protocol", "tradePick but I won") }
-        let mine = myColor == .blue ? broughtBlue : broughtRed
-        let n: Int
-        switch settings!.trade {
-        case .one: n = 1
-        case .diff: n = min(abs(blue - red), mine.count)
-        default: n = mine.count
-        }
-        guard ids.count == n else { try fault("trade", "picked \(ids.count), expected \(n)") }
-        let counts = Dictionary(grouping: mine.map(\.id), by: { $0 }).mapValues(\.count)
-        let picked = Dictionary(grouping: ids, by: { $0 }).mapValues(\.count)
-        for (id, c) in picked where (counts[id] ?? 0) < c { try fault("trade", "picked outside my hand") }
-        eventsCont.yield(.tradeResolved(
-            transfers: ids.map { CardTransfer(card: catalog[$0]!, from: myColor, to: myColor.other) }))
-    }
-
 
     // MARK: - plumbing
 

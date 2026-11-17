@@ -132,13 +132,3 @@ public enum Ai {
         }
     }
 }
-
-public enum TradeAi {
-    // FF8-flavored: winners take the best cards. Level first, then rank total.
-    public static func pick(candidates: [CardDef], n: Int) -> [String] {
-        candidates.sorted { a, b in
-            if a.level != b.level { return a.level > b.level }
-            return (a.top + a.right + a.bottom + a.left) > (b.top + b.right + b.bottom + b.left)
-        }.prefix(n).map { $0.id }
-    }
-}

@@ -333,7 +333,7 @@ fun JoinFlowScreen(
                                 if (inv == null && raw != null) {
                                     errorMsg = "That QR isn't a Triad invite, try again."
                                 } else if (inv?.mode == "trade") {
-                                    errorMsg = "Trade rooms are retired."
+                                    errorMsg = "That invite type isn't supported anymore."
                                 } else if (inv != null) {
 
                                     invite = inv
@@ -410,7 +410,6 @@ fun MultiplayerScreen(hasActiveDeck: Boolean, onDecks: () -> Unit,
 
 class P2pMatchViewModel(
     private val session: P2pSession, initialState: GameState, initialColor: Owner,
-    private val onTransfers: (List<triad.core.CardTransfer>, Owner) -> Unit = { _, _ -> },
 ) {
     var state by mutableStateOf(initialState); private set
     var myColor by mutableStateOf(initialColor); private set
@@ -460,10 +459,9 @@ fun P2pMatchScreen(
     catalog: Map<String, CardDef>,
     initialState: GameState,
     initialColor: Owner,
-    onTransfers: (List<triad.core.CardTransfer>, Owner) -> Unit = { _, _ -> },
     onExit: () -> Unit,
 ) {
-    val vm = remember { P2pMatchViewModel(session, initialState, initialColor, onTransfers) }
+    val vm = remember { P2pMatchViewModel(session, initialState, initialColor) }
     DisposableEffect(vm) { onDispose { vm.dispose() } }
 
     val state = vm.state ?: return

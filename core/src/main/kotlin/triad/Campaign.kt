@@ -319,7 +319,7 @@ object Campaign {
         val r = SplitMix64(seed)
         val cells = List(9) {
             if (fight.elemental && r.nextInt(5) == 0)
-                Cell(element = Element.entries[r.nextInt(9) + 1])
+                Cell(element = Element.entries[r.nextInt(8) + 1])   // the 8 playable elements; dark has no cards or sigil
             else Cell()
         }
         fun pick5(cards: List<CardDef>): List<CardDef> {

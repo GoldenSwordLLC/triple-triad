@@ -40,12 +40,11 @@ sealed interface SessionEvent {
     data class MoveApplied(val flips: List<Flip>, val state: GameState) : SessionEvent
     data class RematchStarted(val state: GameState, val myColor: Owner) : SessionEvent
     sealed interface Outcome {
-        data class Won(val transfers: List<CardTransfer>, val pendingPick: PendingPick?) : Outcome
+        data object Won : Outcome
         data object Lost : Outcome
         data object Drawn : Outcome
     }
     data class GameOver(val outcome: Outcome) : SessionEvent
-    data class TradeResolved(val transfers: List<CardTransfer>) : SessionEvent
     data class Forfeit(val winner: Owner, val reason: String) : SessionEvent
     data class Declined(val detail: String) : SessionEvent
     data class Disconnected(val detail: String) : SessionEvent
@@ -83,7 +82,6 @@ class P2pSession(
     private var seedHex = ""
     private var seed = 0L
     var peerName: String = "?"; private set
-    val tradeRule: TradeRule? get() = settings?.trade
     private var peerPub: String = ""
     val deckSize get() = me.deckIds.size
     private var settings: MatchSettings? = null
@@ -96,8 +94,6 @@ class P2pSession(
     private var referee: DeckReferee? = null
     private var broughtBlue: List<CardDef> = emptyList()
     private var broughtRed: List<CardDef> = emptyList()
-    private var pendingPick: PendingPick? = null
-    @Volatile private var concluded = false
 
     companion object { private const val CLOSED = "\u0000__wire_closed__" }
     private var myAckSent = false; private var peerAcked = false
@@ -118,7 +114,7 @@ class P2pSession(
         scope.launch {
             for (line in inbound) {
                 if (line == CLOSED) {
-                    if (!concluded && !done) {
+                    if (!done) {
                         val s = state
                         when {
                             s == null -> terminate(SessionEvent.Disconnected("connection lost"))
@@ -178,18 +174,14 @@ class P2pSession(
         }
         is Msg.DeckAck -> { peerAcked = true; maybeBegin() }
         is Msg.Move -> onPeerMove(m)
-        is Msg.TradePick -> onTradePick(m)
         is Msg.Rematch -> {
             // called from the inbound loop, which already holds the mutex — a nested
             // withLock here would deadlock (Mutex is not reentrant)
             val s = state
-            if (s != null && s.isOver && !concluded && pendingPick == null) {
+            if (s != null && s.isOver) {
                 startRematch()
             }
         }
-        is Msg.TradeCollection -> fault("protocol", "trade message in a match session")
-        is Msg.FriendlyOffer -> fault("protocol", "trade message in a match session")
-        is Msg.FriendlyAccept -> fault("protocol", "trade message in a match session")
         is Msg.Resign -> terminate(SessionEvent.Forfeit(myColor, "Opponent resigned"))
         is Msg.Error -> terminate(SessionEvent.ProtocolError(m.code, m.detail))
     } }
@@ -221,7 +213,9 @@ class P2pSession(
         myColor = if (isHost) hostColor else joinerColor
         val s = settings!!
         val cells = List(9) {
-            if (s.rules.elemental && r.nextInt(5) == 0) Cell(element = Element.entries[r.nextInt(9) + 1]) else Cell()
+            if (s.rules.elemental && r.nextInt(5) == 0)
+                Cell(element = Element.entries[r.nextInt(8) + 1])   // the 8 playable elements; dark has no cards or sigil
+            else Cell()
         }
         val hostPool = if (isHost) me.deckIds else peerDeck!!.ids
         val joinerPool = if (isHost) peerDeck!!.ids else me.deckIds
@@ -255,7 +249,7 @@ class P2pSession(
     fun rematch() = scope.launch { mutex.withLock {
         if (done) return@launch
         val s = state ?: return@launch
-        if (!s.isOver || concluded || pendingPick != null) return@launch
+        if (!s.isOver) return@launch
         startRematch()
         send(Msg.Rematch)
     } }
@@ -308,69 +302,11 @@ class P2pSession(
     }
 
     private suspend fun resolveEnd() {
-        val s = state!!; val st = settings!!
-        val blue = s.score(Owner.blue); val red = s.score(Owner.red)
-
-        // `concluded` means "no rematch possible" (trades applied) — a cleanly
-        // finished match stays open so either side can propose a rematch
-        val winner = if (blue > red) Owner.blue else Owner.red
-        run {
-            val iWon = winner == myColor
-                val loserBrought = if (winner == Owner.blue) broughtRed else broughtBlue
-                when (st.trade) {
-                    TradeRule.direct -> {
-                        val t = s.board.cells.mapNotNull { it.card }
-                            .filter { it.owner != it.originalOwner }
-                            .map { CardTransfer(it.def, it.originalOwner, it.owner) }
-                        events.send(SessionEvent.GameOver(if (iWon) SessionEvent.Outcome.Won(t, null) else SessionEvent.Outcome.Lost))
-                        events.send(SessionEvent.TradeResolved(t))
-                        concluded = true
-                    }
-                    TradeRule.none -> events.send(SessionEvent.GameOver(if (iWon) SessionEvent.Outcome.Won(emptyList(), null) else SessionEvent.Outcome.Lost))
-                    else -> {
-                        val n = when (st.trade) {
-                            TradeRule.one -> 1
-                            TradeRule.diff -> minOf(abs(blue - red), loserBrought.size)
-                            else -> loserBrought.size
-                        }
-                        if (iWon) {
-                            pendingPick = PendingPick(n, loserBrought)
-                            events.send(SessionEvent.GameOver(SessionEvent.Outcome.Won(emptyList(), pendingPick)))
-                        } else events.send(SessionEvent.GameOver(SessionEvent.Outcome.Lost))
-                    }
-                }
-            }
-    }
-
-    fun tradePick(ids: List<String>) = scope.launch { mutex.withLock {
-        val p = pendingPick ?: return@launch
-        val counts = p.candidates.map { it.id }.groupingBy { it }.eachCount()
-        if (ids.size != p.count || ids.groupingBy { it }.eachCount().any { (id, c) -> (counts[id] ?: 0) < c })
-            return@launch
-        send(Msg.TradePick(ids))
-        pendingPick = null
-        concluded = true
-        events.send(SessionEvent.TradeResolved(ids.map { CardTransfer(catalog.getValue(it), myColor.other, myColor) }))
-    } }
-
-    private suspend fun onTradePick(m: Msg.TradePick) {
-        val s = state ?: fault("protocol", "trade before match")
-        if (!s.isOver) fault("protocol", "trade while playing")
+        val s = state!!
         val blue = s.score(Owner.blue); val red = s.score(Owner.red)
         val winner = if (blue > red) Owner.blue else Owner.red
-        if (winner != myColor.other) fault("protocol", "tradePick but I won")
-        val mine = if (myColor == Owner.blue) broughtBlue else broughtRed
-        val n = when (settings!!.trade) {
-            TradeRule.one -> 1
-            TradeRule.diff -> minOf(abs(blue - red), mine.size)
-            else -> mine.size
-        }
-        if (m.ids.size != n) fault("trade", "picked ${m.ids.size}, expected $n")
-        val counts = mine.map { it.id }.groupingBy { it }.eachCount()
-        if (m.ids.groupingBy { it }.eachCount().any { (id, c) -> (counts[id] ?: 0) < c })
-            fault("trade", "picked outside my hand")
-        concluded = true
-        events.send(SessionEvent.TradeResolved(m.ids.map { CardTransfer(catalog.getValue(it), myColor, myColor.other) }))
+        val iWon = winner == myColor
+        events.send(SessionEvent.GameOver(if (iWon) SessionEvent.Outcome.Won else SessionEvent.Outcome.Lost))
     }
 
     private fun canonical(s: GameState, seq: Int): String = buildString {

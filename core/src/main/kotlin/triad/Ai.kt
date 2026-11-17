@@ -93,11 +93,3 @@ object Ai {
         else -> 1100L
     }
 }
-
-object TradeAi {
-
-    fun pick(candidates: List<CardDef>, n: Int): List<String> =
-        candidates.sortedWith(compareByDescending<CardDef> { it.level }
-            .thenByDescending { it.top + it.right + it.bottom + it.left })
-            .take(n).map { it.id }
-}

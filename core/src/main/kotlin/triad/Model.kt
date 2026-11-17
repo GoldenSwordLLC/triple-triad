@@ -8,7 +8,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable enum class Element { none, fire, ice, thunder, poison, holy, wind, earth, water, dark }
 @Serializable enum class CardType { monster, boss, gf, character }
-@Serializable enum class TradeRule { none, one, direct, diff, all }
 
 @Serializable
 data class CardDef(
@@ -48,8 +47,7 @@ data class MatchSettings(
     val rules: Rules = Rules(),
     val open: Boolean = true,
     val randomHands: Boolean = false,
-    val suddenDeath: Boolean = false,
-    val trade: TradeRule = TradeRule.none
+    val suddenDeath: Boolean = false
 )
 
 @Serializable
@@ -69,14 +67,3 @@ data class GameState(
 @Serializable enum class FlipCause { basic, same, plus, combo }
 @Serializable data class Flip(val cell: Int, val cause: FlipCause, val wave: Int)
 data class PlacementResult(val state: GameState, val flips: List<Flip>)
-
-data class CardTransfer(val card: CardDef, val from: Owner, val to: Owner)
-data class PendingPick(val count: Int, val candidates: List<CardDef>)
-
-fun TradeRule.maxLoss(brought: Int = 5): Int = when (this) {
-    TradeRule.none -> 0
-    TradeRule.one -> 1
-    TradeRule.direct -> brought
-    TradeRule.diff -> brought
-    TradeRule.all -> brought
-}

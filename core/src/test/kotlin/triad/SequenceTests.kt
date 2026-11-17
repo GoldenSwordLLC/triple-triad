@@ -31,7 +31,7 @@ class SequenceTests {
         val notGenerated = "GENERATE" in fx.expect.blueSample || fx.expect.coin == -1
         val r = SplitMix64(seedFromHex(fx.seedHex))
         val coin = r.nextInt(2)
-        val cells = List(9) { if (fx.elemental && r.nextInt(5) == 0) r.nextInt(9) + 1 else 0 }
+        val cells = List(9) { if (fx.elemental && r.nextInt(5) == 0) r.nextInt(8) + 1 else 0 }
         val blueSample = if (fx.randomHands) r.sample5(fx.pool) else fx.pool.take(5)
         val redSample  = if (fx.randomHands) r.sample5(fx.pool) else fx.pool.take(5)
         val first = r.nextInt(2)
