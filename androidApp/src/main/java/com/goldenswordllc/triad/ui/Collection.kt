@@ -24,10 +24,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import triad.core.Campaign
 import triad.core.CardDef
 import triad.core.PlayerSave
-import triad.core.packSources
-import triad.core.packDropRate
 import triad.core.Owner
 
 private val CollectionGold = Color(255, 240, 200)
@@ -41,6 +40,12 @@ fun CollectionScreen(catalog: Map<String, CardDef>, save: PlayerSave, onBack: ()
     val total = levels.sumOf { it.second.size }
     val have = levels.sumOf { (lvl, cards) -> cards.count { it.id in owned } }
     var detail by remember { mutableStateOf<CardDef?>(null) }
+    // where each card comes from: the campaign fight that pays it, or the starter kit
+    val rewardSource = remember(catalog) {
+        val m = HashMap<String, Campaign.Fight>()
+        Campaign.FIGHTS.forEach { f -> f.rewardIds.forEach { id -> m[id] = f } }
+        m
+    }
 
     Box(Modifier.fillMaxSize()) {
         MatBackground(Modifier.matchParentSize(), dim = 0.3f)
@@ -58,22 +63,16 @@ fun CollectionScreen(catalog: Map<String, CardDef>, save: PlayerSave, onBack: ()
                          fontWeight = FontWeight.Bold)
                     Text("dimmed cards are missing · ×N = copies you own", color = CollectionDim, fontSize = 10.sp,
                          modifier = Modifier.padding(top = 2.dp))
-                    Text("pack sources, E easy · M medium · H hard · X expert", color = CollectionDim,
+                    Text("source = the fight that pays the card", color = CollectionDim,
                          fontSize = 10.sp, modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
                     levels.forEach { (lvl, cards) ->
                         val haveInTier = cards.count { it.id in owned }
                         val missing = cards.size - haveInTier
-                        val tierSources = cards.map { packSources(it).toSet() }.distinct()
-                        val sourceNote = if (tierSources.size == 1)
-                            tierSources.single().map { it.first().uppercase() }.joinToString("·") else null
                         Row(verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp)) {
                             Text("LEVEL $lvl", color = CollectionLabel, fontSize = 12.sp,
                                  fontWeight = FontWeight.Bold)
                             Spacer(Modifier.weight(1f))
-                            if (sourceNote != null) Text(sourceNote, color = CollectionDim,
-                                 fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                                 modifier = Modifier.padding(end = 8.dp))
                             Text(if (missing == 0) "$haveInTier / ${cards.size}" else "$haveInTier / ${cards.size}  ·  missing $missing",
                                  color = if (missing == 0) Color(140, 200, 140) else Color(255, 150, 130),
                                  fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -109,7 +108,7 @@ fun CollectionScreen(catalog: Map<String, CardDef>, save: PlayerSave, onBack: ()
                                             }
                                         }
 
-                                        Text(packSources(def).map { it.first().uppercase() }.joinToString("·"),
+                                        Text(rewardSource[def.id]?.let { "C${it.chapter}" } ?: "STARTER",
                                              color = if (haveIt) CollectionDim else CollectionGold.copy(alpha = 0.75f),
                                              fontSize = 8.sp, fontWeight = FontWeight.Bold,
                                              modifier = Modifier.padding(top = 2.dp))
@@ -145,17 +144,10 @@ fun CollectionScreen(catalog: Map<String, CardDef>, save: PlayerSave, onBack: ()
                          color = if (ownedCount > 0) Color(140, 200, 140) else Color(255, 150, 130),
                          fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(10.dp))
-                    Text("chance per pack:", color = CollectionDim, fontSize = 11.sp)
-                    Spacer(Modifier.height(4.dp))
-                    listOf("easy", "medium", "hard", "expert").forEach { tier ->
-                        val r = packDropRate(card, tier, catalog.values)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(tier.uppercase(), color = CollectionLabel, fontSize = 13.sp)
-                            Text(if (r <= 0.0) "0%" else "%.1f%%".format(r * 100),
-                                 color = if (r <= 0.0) CollectionDim else CollectionGold,
-                                 fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                    val src = rewardSource[card.id]
+                    Text(if (src != null) "Rewarded by ${src.name}, ${src.epithet} — chapter ${src.chapter}"
+                         else "Part of your starter kit",
+                         color = CollectionGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             },
             confirmButton = {
