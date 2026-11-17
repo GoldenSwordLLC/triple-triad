@@ -89,11 +89,12 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
     }
 
     val cleared = Campaign.isComplete(record.campaignCleared)
-    val next = Campaign.fightAt(Campaign.nextUncleared(record.campaignCleared))
+    val nextIdx = Campaign.nextUncleared(record.campaignCleared)
+    val next = Campaign.fightAt(nextIdx)
     if (askForDeck && !hasValidDeck) {
         NoDeckDialog(
             onBuild = { askForDeck = false; onDecks() },
-            onPlayAnyway = { askForDeck = false; onStart("c:${Campaign.nextUncleared(record.campaignCleared)}") },
+            onPlayAnyway = { askForDeck = false; onStart("c:$nextIdx") },
             onDismiss = { askForDeck = false },
         )
     }
@@ -144,7 +145,9 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
                        sub = if (cleared) "circuit complete · challenge the Monarch again"
                              else "chapter ${next.chapter} · match ${Campaign.fightsIn(next.chapter).indexOf(next) + 1} of ${Campaign.fightsIn(next.chapter).size} — ${next.name}, ${next.epithet}",
                        filled = true) {
-                if (hasValidDeck) onStart("c:${next.chapter}") else askForDeck = true
+                // pass the GLOBAL fight index — MainActivity parses "c:N" with fightAt(),
+                // which indexes the 51-fight ladder, not chapters
+                if (hasValidDeck) onStart("c:$nextIdx") else askForDeck = true
             }
             GoldButton("DECKS", sub = "manage your collection") { onDecks() }
             GoldButton("MULTIPLAYER", sub = "pass & play · host · join") { onMultiplayer() }

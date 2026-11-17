@@ -42,6 +42,35 @@ class CampaignTest {
         }
     }
 
+    private fun sum(fight: Campaign.Fight, cat: Map<String, CardDef>) =
+        fight.deckIds.sumOf { id -> cat[id]!!.let { it.top + it.right + it.bottom + it.left } }
+
+    /** Structural shape: exactly one boss per chapter, and it closes the chapter
+     *  (lesser-first → boss-last — the ch1 reorder regression). */
+    @Test fun `every chapter ends with its boss`() {
+        for (chapter in 1..Campaign.CHAPTERS) {
+            val fights = Campaign.fightsIn(chapter)
+            val bosses = fights.filter { it.isBoss }
+            assertEquals(1, bosses.size, "chapter $chapter boss count")
+            assertEquals(fights.last(), bosses[0], "chapter $chapter boss is not the last fight")
+        }
+    }
+
+    /** No lesser may outgun its chapter boss (deck stat sums). A tie is allowed —
+     *  the all-level-1 chapter 1 decks sit at the band floor, so Skip == Pip. */
+    @Test fun `no lesser outguns its chapter boss`() {
+        val cat = catalog()
+        for (chapter in 1..Campaign.CHAPTERS) {
+            val fights = Campaign.fightsIn(chapter)
+            val boss = fights.last()
+            for (lesser in fights.dropLast(1)) {
+                val margin = sum(lesser, cat) - sum(boss, cat)
+                assertTrue(margin <= 0,
+                    "ch$chapter lesser ${lesser.name} (${sum(lesser, cat)}) outguns boss ${boss.name} (${sum(boss, cat)})")
+            }
+        }
+    }
+
     private fun playOne(index: Int, cat: Map<String, CardDef>, seed: Long, playerBudget: Long): Owner {
         val opp = Campaign.fightAt(index)
         val hand = Campaign.campaignHand(Campaign.playerArsenal(index, cat))
