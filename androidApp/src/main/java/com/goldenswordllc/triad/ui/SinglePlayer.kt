@@ -516,28 +516,24 @@ fun SinglePlayerScreen(
                  modifier = Modifier.padding(top = 3.dp, bottom = 2.dp))
 
             // capture callouts: say WHY cards just flipped — Same/Plus fire on
-            // equality (easy to misread as a bug), Combo marks chain waves
-            if (vm.lastFlips.any { it.cause == FlipCause.same }) {
-                Text("SAME!", color = Color(255, 190, 60), fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                     style = LocalTextStyle.current.copy(
-                         shadow = androidx.compose.ui.graphics.Shadow(
-                             color = Color(90, 45, 8), blurRadius = 10f,
-                             offset = androidx.compose.ui.geometry.Offset(2f, 2f))),
-                     modifier = Modifier.padding(bottom = 4.dp))
-            } else if (vm.lastFlips.any { it.cause == FlipCause.plus }) {
-                Text("PLUS!", color = Color(255, 190, 60), fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                     style = LocalTextStyle.current.copy(
-                         shadow = androidx.compose.ui.graphics.Shadow(
-                             color = Color(90, 45, 8), blurRadius = 10f,
-                             offset = androidx.compose.ui.geometry.Offset(2f, 2f))),
-                     modifier = Modifier.padding(bottom = 4.dp))
-            } else if (vm.lastFlips.any { it.cause == FlipCause.combo }) {
-                Text("COMBO!", color = Color(255, 190, 60), fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                     style = LocalTextStyle.current.copy(
-                         shadow = androidx.compose.ui.graphics.Shadow(
-                             color = Color(90, 45, 8), blurRadius = 10f,
-                             offset = androidx.compose.ui.geometry.Offset(2f, 2f))),
-                     modifier = Modifier.padding(bottom = 4.dp))
+            // equality (easy to misread as a bug), Combo marks chain waves.
+            // The slot reserves its height ALWAYS so the board (weight(1f))
+            // never reflows when a callout fires or clears — the size jump was
+            // reported as nauseating.
+            val callout = when {
+                vm.lastFlips.any { it.cause == FlipCause.same } -> "SAME!"
+                vm.lastFlips.any { it.cause == FlipCause.plus } -> "PLUS!"
+                vm.lastFlips.any { it.cause == FlipCause.combo } -> "COMBO!"
+                else -> ""
+            }
+            Box(Modifier.fillMaxWidth().height(30.dp), contentAlignment = Alignment.Center) {
+                if (callout.isNotEmpty()) {
+                    Text(callout, color = Color(255, 190, 60), fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                         style = LocalTextStyle.current.copy(
+                             shadow = androidx.compose.ui.graphics.Shadow(
+                                 color = Color(90, 45, 8), blurRadius = 10f,
+                                 offset = androidx.compose.ui.geometry.Offset(2f, 2f))))
+                }
             }
 
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
