@@ -43,6 +43,7 @@ import com.goldenswordllc.triad.ui.OnlineJoinScreen
 
 import com.goldenswordllc.triad.ui.DeckManagerScreen
 import com.goldenswordllc.triad.ui.CampaignVersusScreen
+import com.goldenswordllc.triad.ui.CircuitScreen
 import com.goldenswordllc.triad.ui.MenuScreen
 import com.goldenswordllc.triad.ui.MultiplayerScreen
 import com.goldenswordllc.triad.ui.P2pMatchScreen
@@ -103,8 +104,10 @@ private sealed interface Screen {
     data object Decks : Screen
     data object Multiplayer : Screen
     data class Game(val difficulty: String, val redDeck: List<CardDef>? = null,
-                    val rules: Rules = Rules()) : Screen
-    data class Versus(val fight: Campaign.Fight) : Screen
+                    val rules: Rules = Rules(),
+                    val replayFight: Campaign.Fight? = null) : Screen
+    data class Versus(val fight: Campaign.Fight, val replay: Boolean = false) : Screen
+    data object Circuit : Screen
     data class PassRedPick(val blueDeck: List<CardDef>) : Screen
     data object Collection : Screen
     data object PackClaim : Screen
@@ -210,8 +213,13 @@ class MainActivity : ComponentActivity() {
                             record = save.value,
                             hasValidDeck = hasValidDeck,
                             onStart = { tier ->
-                                if (tier.startsWith("c:")) {
-                                    screen = Screen.Versus(Campaign.fightAt(tier.substringAfter("c:").toInt()))
+                                if (tier == "hub") {
+                                    screen = Screen.Circuit
+                                } else if (tier.startsWith("c:")) {
+                                    val n = tier.substringAfter("c:").toInt()
+                                    screen = if (n < save.value.campaignCleared.size && Campaign.isComplete(save.value.campaignCleared))
+                                        Screen.Versus(Campaign.fightAt(n), replay = true)
+                                    else Screen.Versus(Campaign.fightAt(n))
                                 } else gatePack { screen = Screen.Game(tier) }
                             },
                             onTutorial = { screen = Screen.Tutorial },
@@ -241,6 +249,13 @@ class MainActivity : ComponentActivity() {
                             onExit = { screen = Screen.Multiplayer },
                         )
                     }
+                    Screen.Circuit ->
+                        CircuitScreen(
+                            circuitWins = save.value.circuitWins,
+                            circuitLosses = save.value.circuitLosses,
+                            onFight = { screen = Screen.Versus(it, replay = true) },
+                            onExit = { screen = Screen.Menu },
+                        )
                     Screen.Multiplayer ->
                         MultiplayerScreen(
                             hasActiveDeck = hasValidDeck,
@@ -312,52 +327,63 @@ class MainActivity : ComponentActivity() {
                         CampaignVersusScreen(
                             catalog = catalog,
                             cleared = save.value.campaignCleared,
-                            onFight = { screen = Screen.Game("campaign") },
+                            replayFight = if (s.replay) s.fight else null,
+                            onFight = { screen = Screen.Game("campaign", replayFight = if (s.replay) s.fight else null) },
                             onExit = { screen = Screen.Menu },
                         )
                     is Screen.Game -> {
                         if (s.difficulty == "campaign") {
                             // snapshot ONCE per navigation: the fight you entered with stays
                             // yours through the win's save-write — re-deriving here teleported
-                            // players straight into the next fight before the result showed
-                            val fight = remember { Campaign.fightAt(save.value.campaignCleared.size) }
-                            val idx = remember { save.value.campaignCleared.size }
-                            val blueDeck = remember { battleDeck(save.value, catalog) }
+                            // players straight into the next fight before the result showed.
+                            // Replay fights (post-run circuit hub) pass the fight explicitly and
+                            // field the ARSENAL of that point — no endgame decks cheesing ch1.
+                            val fight = remember { s.replayFight ?: Campaign.fightAt(save.value.campaignCleared.size) }
+                            val idx = remember { Campaign.FIGHTS.indexOf(fight) }
+                            val isReplay = remember { s.replayFight != null }
+                            val blueDeck = remember {
+                                if (isReplay) Campaign.campaignHand(Campaign.playerArsenal(idx, catalog))
+                                else battleDeck(save.value, catalog)
+                            }
                             SinglePlayerScreen(
                                 catalog = catalog,
                                 difficulty = "campaign",
                                 rules = s.rules,
                                 myDeck = blueDeck,
                                 campaign = fight,
+                                isReplay = isReplay,
                                 aiBudgetMs = fight.aiBudgetMs,
                                 onRecord = { won, _ ->
                                     if (won) {
                                         save.value = run {
                                             val cleared = save.value.campaignCleared
-                                            val firstClear = idx !in cleared
+                                            val firstClear = !isReplay && idx !in cleared
                                             val base = if (firstClear)
                                                 save.value.addCards(fight.rewardIds.mapNotNull { catalog[it] })
                                                     .copy(campaignCleared = cleared + idx)
                                             else save.value
-                                            base.copy(wins = base.wins + 1)
+                                            base.copy(wins = base.wins + 1,
+                                                      circuitWins = base.circuitWins + 1)
                                         }
                                         persist(this@MainActivity, save.value)
                                     } else {
-                                        save.value = save.value.copy(losses = save.value.losses + 1)
+                                        save.value = save.value.copy(losses = save.value.losses + 1,
+                                                                      circuitLosses = save.value.circuitLosses + 1)
                                         persist(this@MainActivity, save.value)
                                     }
                                 },
                                 onNext = {
                                     // route through the versus screen so the next opponent
-                                    // is presented before the fight starts
+                                    // is presented before the fight starts; replay chains keep
+                                    // replay semantics (arsenal decks, no rewards)
                                     val nextIdx = idx + 1
                                     if (nextIdx < Campaign.FIGHTS.size) {
-                                        screen = Screen.Versus(Campaign.fightAt(nextIdx))
+                                        screen = Screen.Versus(Campaign.fightAt(nextIdx), replay = isReplay)
                                     } else {
-                                        screen = Screen.Menu
+                                        screen = if (isReplay) Screen.Circuit else Screen.Menu
                                     }
                                 },
-                                onManageDeck = { screen = Screen.Decks },
+                                onManageDeck = if (isReplay) null else ({ screen = Screen.Decks }),
                                 onExit = { screen = Screen.Menu },
                             )
                         } else {

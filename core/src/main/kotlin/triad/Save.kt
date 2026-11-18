@@ -26,6 +26,7 @@ data class PlayerSave(
     val wins: Int = 0, val losses: Int = 0, val draws: Int = 0,
     val tutorialSeen: Boolean = false,
     val campaignCleared: List<Int> = emptyList(),   // global indexes of beaten fights (only ever grows)
+    val circuitWins: Int = 0, val circuitLosses: Int = 0,   // W/L across ALL circuit games (run + replays)
     val cardMemory: Map<String, CardMemory> = emptyMap(),
     val expertStreak: Int = 0,
     val pendingPack: List<String> = emptyList(),

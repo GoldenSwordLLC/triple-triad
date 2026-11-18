@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -141,13 +142,20 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
             }
             Text("THE CARD CIRCUIT", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            GoldButton(if (cleared) "FREE PLAY  ▶" else "PLAY  ▶",
-                       sub = if (cleared) "circuit complete · challenge the Monarch again"
-                             else "chapter ${next.chapter} · match ${Campaign.fightsIn(next.chapter).indexOf(next) + 1} of ${Campaign.fightsIn(next.chapter).size} — ${next.name}, ${next.epithet}",
-                       filled = true) {
-                // pass the GLOBAL fight index — MainActivity parses "c:N" with fightAt(),
-                // which indexes the 51-fight ladder, not chapters
-                if (hasValidDeck) onStart("c:$nextIdx") else askForDeck = true
+            if (cleared) {
+                Text("CIRCUIT COMPLETE · ${record.circuitWins}W · ${record.circuitLosses}L",
+                     color = GoldText, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                     modifier = Modifier.padding(bottom = 4.dp))
+                GoldButton("CIRCUIT  ▶", sub = "replay any of the 51 fights — decks match the era",
+                           filled = true) { onStart("hub") }
+            } else {
+                GoldButton("PLAY  ▶",
+                           sub = "chapter ${next.chapter} · match ${Campaign.fightsIn(next.chapter).indexOf(next) + 1} of ${Campaign.fightsIn(next.chapter).size} — ${next.name}, ${next.epithet}",
+                           filled = true) {
+                    // pass the GLOBAL fight index — MainActivity parses "c:N" with fightAt(),
+                    // which indexes the 51-fight ladder, not chapters
+                    if (hasValidDeck) onStart("c:$nextIdx") else askForDeck = true
+                }
             }
             GoldButton("DECKS", sub = "manage your collection") { onDecks() }
             GoldButton("MULTIPLAYER", sub = "pass & play · host · join") { onMultiplayer() }
@@ -409,6 +417,7 @@ fun SinglePlayerScreen(
     myDeck: List<CardDef>,
     redDeck: List<CardDef>? = null,
     campaign: Campaign.Fight? = null,
+    isReplay: Boolean = false,
     rules: Rules = Rules(),
     threats: Set<String> = emptySet(),
     beatenCards: List<CardDef> = emptyList(),
@@ -587,7 +596,7 @@ fun SinglePlayerScreen(
                     Text(label, color = color, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Text("$blue - $red", color = Color(230, 205, 160), fontSize = 14.sp)
-                    if (campaign != null && blue > red) {
+                    if (campaign != null && blue > red && !isReplay) {
                         Spacer(Modifier.height(12.dp))
                         Text("Reward", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
@@ -863,6 +872,72 @@ fun BoardCells(state: GameState, lastFlips: List<Flip>, selectActive: Boolean,
     }
 }
 
+/** Post-run hub over the CIRCUIT COMPLETE state: every fight replayable, each
+ *  fought with the ARSENAL of its era (campaignHand(playerArsenal(idx))) so an
+ *  endgame deck can't cheese chapter 1. Replays pay nothing — this is the
+ *  free-challenge board; the W/L line counts circuit games only. */
+@Composable
+fun CircuitScreen(circuitWins: Int, circuitLosses: Int,
+                  onFight: (Campaign.Fight) -> Unit, onExit: () -> Unit) {
+    val vScroll = rememberScrollState()
+    val canUp by remember { derivedStateOf { vScroll.value > 0 } }
+    val canDown by remember { derivedStateOf { vScroll.value < vScroll.maxValue } }
+    Box(Modifier.fillMaxSize()) {
+        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
+        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+               horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("THE CARD CIRCUIT", color = GoldText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("CIRCUIT COMPLETE · ${circuitWins}W · ${circuitLosses}L",
+                 color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                 modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
+            Box(Modifier.weight(1f).fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp)).background(Color(22, 15, 6).copy(alpha = 0.88f))) {
+                Column(Modifier.fillMaxSize().verticalScroll(vScroll)
+                               .padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    for (chapter in 1..Campaign.CHAPTERS) {
+                        val mates = Campaign.fightsIn(chapter)
+                        Text("CHAPTER $chapter", color = Gold, fontSize = 12.sp,
+                             fontWeight = FontWeight.Bold,
+                             modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
+                        mates.forEach { f ->
+                            val rules = buildList {
+                                if (f.same) add("SAME"); if (f.plus) add("PLUS")
+                                if (f.combo && (f.same || f.plus)) add("COMBO")
+                                if (f.sameWall) add("WALL"); if (f.elemental) add("ELEM")
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { onFight(f) }
+                                        .padding(vertical = 6.dp, horizontal = 4.dp)) {
+                                Text("✓", color = Color(140, 200, 140), fontSize = 12.sp,
+                                     fontWeight = FontWeight.Bold, modifier = Modifier.width(20.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text((if (f.isBoss) "★ " else "") + f.name,
+                                         color = if (f.isBoss) GoldText else Color(245, 238, 220),
+                                         fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text(f.epithet, color = Color(190, 175, 145), fontSize = 10.sp)
+                                }
+                                Text(if (rules.isEmpty()) "NO RULES" else rules.joinToString("·"),
+                                     color = Color(190, 175, 145), fontSize = 9.sp,
+                                     fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+                            }
+                        }
+                    }
+                }
+                if (canUp) Text("▲", color = GoldText, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.align(Alignment.TopCenter).padding(top = 2.dp))
+                if (canDown) Text("▼", color = GoldText, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                  modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp))
+            }
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth()) {
+                GoldButton("MAIN MENU  ▶", filled = true) { onExit() }
+            }
+        }
+    }
+}
+
 @Composable
 fun GameMenuItem(text: String, destructive: Boolean = false, onClick: () -> Unit) {
     Box(Modifier.fillMaxWidth()
@@ -880,8 +955,9 @@ fun GameMenuItem(text: String, destructive: Boolean = false, onClick: () -> Unit
 
 @Composable
 fun CampaignVersusScreen(catalog: Map<String, CardDef>, cleared: List<Int>,
-                         onFight: () -> Unit, onExit: () -> Unit) {
-    val opp = Campaign.fightAt(Campaign.nextUncleared(cleared))   // the save is the truth
+                         onFight: () -> Unit, onExit: () -> Unit,
+                         replayFight: Campaign.Fight? = null) {
+    val opp = replayFight ?: Campaign.fightAt(Campaign.nextUncleared(cleared))   // the save is the truth
     val chapterMates = Campaign.fightsIn(opp.chapter)
     val matchInChapter = chapterMates.indexOf(opp) + 1
     val ctx = LocalContext.current
@@ -901,7 +977,8 @@ fun CampaignVersusScreen(catalog: Map<String, CardDef>, cleared: List<Int>,
     Box(Modifier.fillMaxSize()) {
         MatBackground(Modifier.matchParentSize(), dim = 0.3f)
         Column(Modifier.fillMaxSize().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("CHAPTER ${opp.chapter} · MATCH $matchInChapter OF ${chapterMates.size}",
+            Text((if (replayFight != null) "REPLAY · " else "") +
+                 "CHAPTER ${opp.chapter} · MATCH $matchInChapter OF ${chapterMates.size}",
                  color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
             Box(Modifier.width(190.dp).clip(RoundedCornerShape(10.dp))
