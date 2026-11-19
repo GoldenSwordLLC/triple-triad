@@ -511,37 +511,37 @@ fun SinglePlayerScreen(
             }
 
             // persistent live rules line — the versus screen says the rules once,
-            // this keeps them on screen for the whole match
-            val activeRules = buildList {
-                if (state.rules.same) add("SAME")
-                if (state.rules.plus) add("PLUS")
-                if (state.rules.combo && (state.rules.same || state.rules.plus)) add("COMBO")
-                if (state.rules.sameWall) add("SAME WALL")
-                if (state.rules.elemental) add("ELEMENTAL")
+            // this keeps them on screen for the whole match. When a capture fires,
+            // its rule LIGHTS UP gold (color-only — the line must never change
+            // size, it sits directly above the weight(1f) board and any reflow
+            // there pumps the whole board).
+            val sameFire = vm.lastFlips.any { it.cause == FlipCause.same }
+            val plusFire = vm.lastFlips.any { it.cause == FlipCause.plus }
+            val comboFire = vm.lastFlips.any { it.cause == FlipCause.combo }
+            val tokens = buildList {
+                add(Triple("SAME", state.rules.same, sameFire))
+                add(Triple("PLUS", state.rules.plus, plusFire))
+                if (state.rules.same || state.rules.plus)
+                    add(Triple("COMBO", state.rules.combo, comboFire))
+                add(Triple("SAME WALL", state.rules.sameWall, false))
+                add(Triple("ELEMENTAL", state.rules.elemental, false))
             }
-            Text(if (activeRules.isEmpty()) "NO SPECIAL RULES"
-                 else activeRules.joinToString(" · "),
-                 color = Color(230, 205, 160), fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                 modifier = Modifier.padding(top = 3.dp, bottom = 2.dp))
-
-            // capture callouts: say WHY cards just flipped — Same/Plus fire on
-            // equality (easy to misread as a bug), Combo marks chain waves.
-            // The slot reserves its height ALWAYS so the board (weight(1f))
-            // never reflows when a callout fires or clears — the size jump was
-            // reported as nauseating.
-            val callout = when {
-                vm.lastFlips.any { it.cause == FlipCause.same } -> "SAME!"
-                vm.lastFlips.any { it.cause == FlipCause.plus } -> "PLUS!"
-                vm.lastFlips.any { it.cause == FlipCause.combo } -> "COMBO!"
-                else -> ""
-            }
-            Box(Modifier.fillMaxWidth().height(30.dp), contentAlignment = Alignment.Center) {
-                if (callout.isNotEmpty()) {
-                    Text(callout, color = Color(255, 190, 60), fontSize = 20.sp, fontWeight = FontWeight.Bold,
-                         style = LocalTextStyle.current.copy(
-                             shadow = androidx.compose.ui.graphics.Shadow(
-                                 color = Color(90, 45, 8), blurRadius = 10f,
-                                 offset = androidx.compose.ui.geometry.Offset(2f, 2f))))
+            Row(Modifier.padding(top = 3.dp, bottom = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                if (tokens.none { it.second }) {
+                    Text("NO SPECIAL RULES", color = Color(230, 205, 160), fontSize = 10.sp,
+                         fontWeight = FontWeight.Bold)
+                } else {
+                    var shown = 0
+                    tokens.forEach { (label, on, fire) ->
+                        if (!on) return@forEach
+                        if (shown > 0) Text("·", color = Color(140, 120, 90), fontSize = 10.sp)
+                        Text(label,
+                             color = if (fire) Color(255, 190, 60) else Color(230, 205, 160),
+                             fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        shown++
+                    }
                 }
             }
 
