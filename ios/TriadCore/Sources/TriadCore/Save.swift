@@ -11,16 +11,6 @@ public struct NamedDeck: Codable, Hashable {
     }
 }
 
-/// Per-card record of how the PLAYER fares with a card they bring: games brought / games won.
-/// This is what the Expert AI "remembers" between sittings. (Mirrors Kotlin CardMemory.)
-public struct CardMemory: Codable, Hashable {
-    public var played: Int
-    public var won: Int
-    public init(played: Int = 0, won: Int = 0) {
-        self.played = played; self.won = won
-    }
-}
-
 public struct PlayerSave: Codable, Hashable {
     public var collection: [String: Int]     // cardId -> copies owned
     public var decks: [NamedDeck]
@@ -29,27 +19,17 @@ public struct PlayerSave: Codable, Hashable {
     public var neverFace: [String]
     public var wins: Int, losses: Int, draws: Int
     public var tutorialSeen: Bool
-    public var cardMemory: [String: CardMemory]
-    public var expertStreak: Int
-    public var pendingPack: [String] = []
-    public var expertBeatenWith: [String]
-    public var expertWonDecks: [String]
 
     public init(collection: [String: Int] = [:], decks: [NamedDeck] = [], activeDeck: String? = nil,
                 neverUse: [String] = [], neverFace: [String] = [],
-                wins: Int = 0, losses: Int = 0, draws: Int = 0, tutorialSeen: Bool = false,
-                cardMemory: [String: CardMemory] = [:], expertStreak: Int = 0,
-                expertBeatenWith: [String] = [], expertWonDecks: [String] = []) {
+                wins: Int = 0, losses: Int = 0, draws: Int = 0, tutorialSeen: Bool = false) {
         self.collection = collection; self.decks = decks; self.activeDeck = activeDeck
         self.neverUse = neverUse; self.neverFace = neverFace
         self.wins = wins; self.losses = losses; self.draws = draws; self.tutorialSeen = tutorialSeen
-        self.cardMemory = cardMemory; self.expertStreak = expertStreak
-        self.expertBeatenWith = expertBeatenWith; self.expertWonDecks = expertWonDecks
     }
 
     enum CodingKeys: String, CodingKey {
         case collection, decks, activeDeck, neverUse, neverFace, wins, losses, draws, tutorialSeen
-        case cardMemory, expertStreak, expertBeatenWith, expertWonDecks, pendingPack
     }
 
     public init(from decoder: Decoder) throws {
@@ -63,11 +43,6 @@ public struct PlayerSave: Codable, Hashable {
         losses = try c.decodeIfPresent(Int.self, forKey: .losses) ?? 0
         draws = try c.decodeIfPresent(Int.self, forKey: .draws) ?? 0
         tutorialSeen = try c.decodeIfPresent(Bool.self, forKey: .tutorialSeen) ?? false
-        cardMemory = try c.decodeIfPresent([String: CardMemory].self, forKey: .cardMemory) ?? [:]
-        expertStreak = try c.decodeIfPresent(Int.self, forKey: .expertStreak) ?? 0
-        pendingPack = try c.decodeIfPresent([String].self, forKey: .pendingPack) ?? []
-        expertBeatenWith = try c.decodeIfPresent([String].self, forKey: .expertBeatenWith) ?? []
-        expertWonDecks = try c.decodeIfPresent([String].self, forKey: .expertWonDecks) ?? []
     }
 
     public func activeDeckCards() -> [String] {
@@ -82,47 +57,12 @@ public struct PlayerSave: Codable, Hashable {
         return s
     }
 
-    /// Learn from one finished single-player game: the cards the player brought + outcome.
-    /// Every difficulty feeds cardMemory; Expert games alone move expertStreak.
-    public func withGameMemory(handIds: [String], won: Bool, expert: Bool) -> PlayerSave {
-        var s = self
-        for id in Set(handIds) {
-            let m = s.cardMemory[id] ?? CardMemory()
-            s.cardMemory[id] = CardMemory(played: m.played + 1, won: m.won + (won ? 1 : 0))
-        }
-        if expert {
-            if won { s.expertStreak = max(0, s.expertStreak) + 1 }
-            else { s.expertStreak = min(0, s.expertStreak) - 1 }
-        }
-        if expert && won {
-            s.expertBeatenWith = Array(Set(s.expertBeatenWith + handIds)).sorted()
-            let sig = handIds.sorted().joined(separator: ",")
-            if !s.expertWonDecks.contains(sig) { s.expertWonDecks.append(sig) }
-        }
-        return s
-    }
-
-    /// The player's PROVEN cards: brought often enough to be a pattern and winning with them.
-    public func expertThreats(minPlays: Int = 3, minWinRate: Double = 0.5, limit: Int = 5) -> Set<String> {
-        cardMemory
-            .filter { $0.value.played >= minPlays && Double($0.value.won) / Double($0.value.played) >= minWinRate }
-            .sorted { a, b in
-                if a.value.won != b.value.won { return a.value.won > b.value.won }
-                return a.value.played > b.value.played
-            }
-            .prefix(limit)
-            .map { $0.key }
-            .reduce(into: Set<String>()) { $0.insert($1) }
-    }
-
     public func addCards(_ cards: [CardDef]) -> PlayerSave {
         var c = collection
         for card in cards { c[card.id, default: 0] += 1 }
         return PlayerSave(collection: c, decks: decks, activeDeck: activeDeck,
                           neverUse: neverUse, neverFace: neverFace,
-                          wins: wins, losses: losses, draws: draws, tutorialSeen: tutorialSeen,
-                          cardMemory: cardMemory, expertStreak: expertStreak,
-                          expertBeatenWith: expertBeatenWith, expertWonDecks: expertWonDecks)
+                          wins: wins, losses: losses, draws: draws, tutorialSeen: tutorialSeen)
     }
 }
 
@@ -146,92 +86,4 @@ public func validateDeck(deck: [String], catalog: Set<String>, collection: [Stri
         if enforceBans && neverUse.contains(id) { errors.append(.banned(id: id)) }
     }
     return errors
-}
-
-// MARK: - Campaign packs (mirrors Kotlin rollPack)
-
-/// The five cards that ONLY drop from Expert packs.
-public let EXPERT_EXCLUSIVES: Set<String> = ["doomtrain", "edea", "rinoa", "squall", "seifer"]
-
-public func rollPack(difficulty: String, catalog: [CardDef],
-                     exclusives: Set<String> = EXPERT_EXCLUSIVES) -> [CardDef] {
-    guard !catalog.isEmpty else { return [] }
-    let byLevel = Dictionary(grouping: catalog, by: { $0.level })
-    func drawFrom(_ range: ClosedRange<Int>, pool: (CardDef) -> Bool = { _ in true }) -> CardDef {
-        for _ in 0..<20 {
-            if let lvl = range.randomElement(), let cards = byLevel[lvl]?.filter(pool),
-               let card = cards.randomElement() { return card }
-        }
-        return catalog.filter(pool).randomElement() ?? catalog.randomElement()!
-    }
-
-    switch difficulty.lowercased() {
-    case "easy":
-        return (0..<3).map { _ in drawFrom(1...3) }
-    case "medium":
-        return [drawFrom(4...6)] + (0..<3).map { _ in drawFrom(2...6) }
-    case "expert":
-        // Exactly 2 cards, both level 9-10 — the ONLY source of the hidden five.
-        let jackpot = catalog.filter { exclusives.contains($0.id) }.randomElement() ?? drawFrom(9...10)
-        return [jackpot, drawFrom(9...10)]
-    default:   // hard: 3 cards, levels 3-10 (one guaranteed 7+), never the hidden five
-        let jackpot = drawFrom(7...10) { !exclusives.contains($0.id) }
-        return [jackpot] + (0..<2).map { _ in drawFrom(3...10) { !exclusives.contains($0.id) } }
-    }
-}
-
-// MARK: - Starter collection (fixed — identical for every fresh install)
-
-public let STARTER_COLLECTION = [
-    "geezard", "funguar", "bitebug", "redbat", "blobra", "gayla", "gesper",
-    "fastitocalonf", "bloodsoul", "caterchipillar", "cockatrice", "caterchipillar",
-]
-
-// MARK: - Pack sources + exact drop rates (mirrors Kotlin Save.kt)
-
-/// Which pack tiers can award this card — the rollPack rules restated per card.
-public func packSources(_ card: CardDef, exclusives: Set<String> = EXPERT_EXCLUSIVES) -> [String] {
-    if exclusives.contains(card.id) { return ["expert"] }
-    switch card.level {
-    case ...1: return ["easy"]
-    case 2: return ["easy", "medium"]
-    case 3: return ["easy", "medium", "hard"]
-    case 4...6: return ["medium", "hard"]
-    case 7...8: return ["hard"]
-    default: return ["hard", "expert"]
-    }
-}
-
-/// Chance (0.0-1.0) that ONE pack of `tier` contains this card, computed EXACTLY
-/// from the rollPack draw structure: each draw picks a level uniformly from its
-/// window, then a uniform card of that level.
-public func packDropRate(_ card: CardDef, tier: String, catalog: [CardDef],
-                         exclusives: Set<String> = EXPERT_EXCLUSIVES) -> Double {
-    let byLevel = Dictionary(grouping: catalog) { $0.level }
-    func drawP(_ range: ClosedRange<Int>, pool: (CardDef) -> Bool = { _ in true }) -> Double {
-        guard range.contains(card.level) else { return 0 }
-        let eligible = byLevel[card.level]?.filter(pool).count ?? 0
-        guard eligible > 0 else { return 0 }
-        return (1.0 / Double(range.count)) * (1.0 / Double(eligible))
-    }
-    func over(_ p: Double, _ draws: Int) -> Double { 1 - pow(1 - p, Double(draws)) }
-    let notExclusive: (CardDef) -> Bool = { !exclusives.contains($0.id) }
-    switch tier.lowercased() {
-    case "easy": return over(drawP(1...3), 3)
-    case "medium": return 1 - (1 - drawP(4...6)) * pow(1 - drawP(2...6), 3)
-    case "hard": return 1 - (1 - drawP(7...10, pool: notExclusive)) * pow(1 - drawP(3...10, pool: notExclusive), 2)
-    case "expert":
-        let jackpot = exclusives.contains(card.id)
-            ? 1.0 / Double(max(catalog.filter { exclusives.contains($0.id) }.count, 1)) : 0
-        return 1 - (1 - jackpot) * (1 - drawP(9...10))
-    default: return 0
-    }
-}
-
-public extension PlayerSave {
-    func withPendingPack(_ ids: [String]) -> PlayerSave {
-        var s = self
-        s.pendingPack = ids
-        return s
-    }
 }

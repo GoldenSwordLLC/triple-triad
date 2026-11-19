@@ -19,8 +19,6 @@ import triad.core.GameState
 import triad.core.Ai
 import triad.core.activeDeckCards
 import triad.core.addCards
-import triad.core.expertThreats
-import triad.core.withGameMemory
 import triad.core.Campaign
 import triad.core.Rules
 import triad.core.Owner
@@ -30,7 +28,6 @@ import triad.net.P2pSession
 import com.goldenswordllc.triad.ui.CardSheets
 import com.goldenswordllc.triad.ui.MatCache
 import com.goldenswordllc.triad.ui.MatBackground
-import com.goldenswordllc.triad.ui.PackScreen
 import com.goldenswordllc.triad.ui.CollectionScreen
 import com.goldenswordllc.triad.ui.HostLobbyScreen
 import com.goldenswordllc.triad.ui.JoinFlowScreen
@@ -110,7 +107,6 @@ private sealed interface Screen {
     data object Circuit : Screen
     data class PassRedPick(val blueDeck: List<CardDef>) : Screen
     data object Collection : Screen
-    data object PackClaim : Screen
     data object OnlineHost : Screen
     data object OnlineJoin : Screen
     data object Host : Screen
@@ -154,17 +150,7 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 LaunchedEffect(Unit) { MatCache.load(this@MainActivity) }
                 val save = remember {
-                    var s = ensureStarterCollection(loadSave(this@MainActivity), catalog)
-                    val prefs = getSharedPreferences("triad", MODE_PRIVATE)
-                    val marker = prefs.getString("spActive", null)
-                    if (marker != null) {
-                        val diff = marker.substringBefore("|", "easy")
-                        val hand = marker.substringAfter("|", "").split(",").filter { it.isNotEmpty() }
-                        s = s.withRecord(false, false).withGameMemory(hand, false, diff == "expert")
-                        persist(this@MainActivity, s)
-                        prefs.edit().remove("spActive").apply()
-                    }
-                    mutableStateOf(s)
+                    mutableStateOf(ensureStarterCollection(loadSave(this@MainActivity), catalog))
                 }
 
                 val activeIds = save.value.activeDeckCards()
@@ -175,32 +161,6 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf<Screen>(if (save.value.tutorialSeen) Screen.Menu else Screen.Tutorial)
                 }
 
-                var packGate by remember { mutableStateOf<(() -> Unit)?>(null) }
-                fun gatePack(navigate: () -> Unit) {
-                    if (save.value.pendingPack.isEmpty()) navigate() else packGate = navigate
-                }
-                if (packGate != null) {
-                    androidx.compose.material3.AlertDialog(
-                        onDismissRequest = {},
-                        containerColor = Color(30, 22, 8),
-                        title = { Text("You have a pack to open", color = Color(255, 240, 200), fontWeight = FontWeight.Bold) },
-                        text = { Text("Your last win earned a pack that's still waiting. Open it now, or forfeit it and play on without it.",
-                                      color = Color(245, 238, 220)) },
-                        confirmButton = {
-                            androidx.compose.material3.TextButton(onClick = {
-                                packGate = null
-                                screen = Screen.PackClaim
-                            }) { Text("OPEN PACK", color = Color(255, 200, 100), fontWeight = FontWeight.Bold) }
-                        },
-                        dismissButton = {
-                            androidx.compose.material3.TextButton(onClick = {
-                                save.value = save.value.copy(pendingPack = emptyList())
-                                persist(this@MainActivity, save.value)
-                                val go = packGate; packGate = null; go?.invoke()
-                            }) { Text("FORFEIT & PLAY", color = Color(255, 150, 130), fontWeight = FontWeight.Bold) }
-                        },
-                    )
-                }
                 when (val s = screen) {
                     Screen.Tutorial ->
                         TutorialScreen(onDone = {
@@ -220,7 +180,7 @@ class MainActivity : ComponentActivity() {
                                     screen = if (n < save.value.campaignCleared.size && Campaign.isComplete(save.value.campaignCleared))
                                         Screen.Versus(Campaign.fightAt(n), replay = true)
                                     else Screen.Versus(Campaign.fightAt(n))
-                                } else gatePack { screen = Screen.Game(tier) }
+                                } else screen = Screen.Game(tier)
                             },
                             onTutorial = { screen = Screen.Tutorial },
                             onSettings = { screen = Screen.Settings },
@@ -260,11 +220,11 @@ class MainActivity : ComponentActivity() {
                         MultiplayerScreen(
                             hasActiveDeck = hasValidDeck,
                             onDecks = { screen = Screen.Decks },
-                            onPassPlay = { gatePack { screen = Screen.PassRedPick(battleDeck(save.value, catalog)) } },
-                            onHost = { gatePack { screen = Screen.Host } },
-                            onJoin = { gatePack { screen = Screen.Join } },
-                            onHostOnline = { gatePack { screen = Screen.OnlineHost } },
-                            onJoinOnline = { gatePack { screen = Screen.OnlineJoin } },
+                            onPassPlay = { screen = Screen.PassRedPick(battleDeck(save.value, catalog)) },
+                            onHost = { screen = Screen.Host },
+                            onJoin = { screen = Screen.Join },
+                            onHostOnline = { screen = Screen.OnlineHost },
+                            onJoinOnline = { screen = Screen.OnlineJoin },
                             onBack = { screen = Screen.Menu },
                         )
                     Screen.Decks ->
@@ -294,21 +254,6 @@ class MainActivity : ComponentActivity() {
                     }
                     Screen.Collection ->
                         CollectionScreen(catalog = catalog, save = save.value, onBack = { screen = Screen.Decks })
-                    Screen.PackClaim -> {
-                        val cards = save.value.pendingPack.mapNotNull { catalog[it] }
-                        if (cards.isEmpty()) {
-                            screen = Screen.Menu
-                        } else {
-                            Box(Modifier.fillMaxSize()) {
-                                MatBackground(Modifier.matchParentSize(), dim = 0.3f)
-                                PackScreen(cards = cards) {
-                                    save.value = save.value.addCards(cards).copy(pendingPack = emptyList())
-                                    persist(this@MainActivity, save.value)
-                                    screen = Screen.Menu
-                                }
-                            }
-                        }
-                    }
                     Screen.Settings ->
                         SettingsScreen(
                             record = save.value,
@@ -387,50 +332,16 @@ class MainActivity : ComponentActivity() {
                                 onExit = { screen = Screen.Menu },
                             )
                         } else {
-
+                        // pass & play — the only non-campaign single player left
                         val blueDeck = remember { battleDeck(save.value, catalog) }
-                        if (s.difficulty != "pass") {
-                            LaunchedEffect(s) {
-                                getSharedPreferences("triad", MODE_PRIVATE).edit()
-                                    .putString("spActive", s.difficulty + "|" + blueDeck.joinToString(",") { it.id })
-                                    .apply()
-                            }
-                        }
-                        val redDeck = remember(blueDeck, s.redDeck) { s.redDeck }
-                        val pendingCards = remember(save.value.pendingPack) {
-                            save.value.pendingPack.mapNotNull { catalog[it] }
-                        }
                         SinglePlayerScreen(
                             catalog = catalog,
                             difficulty = s.difficulty,
                             rules = s.rules,
                             myDeck = blueDeck,
-                            redDeck = redDeck,
-                            threats = expertThreats(save.value) + save.value.expertBeatenWith,
-                            beatenCards = save.value.expertBeatenWith.mapNotNull { catalog[it] },
-                            aiBudgetMs = Ai.expertBudget(save.value.expertStreak),
-                            pendingPack = pendingCards,
-                            onPackPending = { cards ->
-
-                                save.value = save.value.copy(
-                                    pendingPack = save.value.pendingPack + cards.map { it.id })
-                                persist(this@MainActivity, save.value)
-                            },
-                            onClaimPendingPack = {
-                                save.value = save.value.addCards(pendingCards).copy(pendingPack = emptyList())
-                                persist(this@MainActivity, save.value)
-                            },
+                            redDeck = s.redDeck,
                             onRecord = { won, drawn ->
-                                getSharedPreferences("triad", MODE_PRIVATE).edit().remove("spActive").apply()
                                 save.value = save.value.withRecord(won = won, drawn = drawn)
-                                persist(this@MainActivity, save.value)
-                                if (won && s.difficulty == "hard") {
-                                    val prefs = getSharedPreferences("triad", MODE_PRIVATE)
-                                    prefs.edit().putInt("hardWins", prefs.getInt("hardWins", 0) + 1).apply()
-                                }
-                            },
-                            onMemory = { handIds, won ->
-                                save.value = save.value.withGameMemory(handIds, won, s.difficulty == "expert")
                                 persist(this@MainActivity, save.value)
                             },
                             onExit = { screen = Screen.Menu },

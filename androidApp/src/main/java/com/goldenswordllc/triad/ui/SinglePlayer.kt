@@ -234,20 +234,9 @@ class SPGameViewModel(
     val redDeck: List<CardDef>? = null,
     val campaign: Campaign.Fight? = null,
     val rules: Rules = Rules(),
-    private val threats: Set<String> = emptySet(),
-    private val beatenCards: List<CardDef> = emptyList(),
     private val aiBudgetMs: Long = 900L,
     private val onRecord: (won: Boolean, drawn: Boolean) -> Unit,
-    private val onMemory: (handIds: List<String>, won: Boolean) -> Unit = { _, _ -> },
 ) {
-
-    private val aiRange: IntRange = when (difficulty) {
-        "easy" -> 1..3
-        "hard" -> 3..10
-        "expert" -> 8..10
-        "pass" -> 1..5
-        else -> 1..6
-    }
 
     var passAndPlay: Boolean = difficulty == "pass"
         private set
@@ -279,10 +268,6 @@ class SPGameViewModel(
             coinText = null
             return Campaign.campaignState(campaign, catalog, myDeck, seed = System.nanoTime())
         }
-        val byLevel = catalog.values
-            .filter { difficulty == "expert" || it.id !in triad.core.EXPERT_EXCLUSIVES }
-            .groupBy { it.level }
-        fun sample(range: IntRange): List<CardDef> = List(5) { byLevel.getValue(range.random()).random() }
         val turn = if ((0..1).random() == 0) Owner.blue else Owner.red
         coinText = if (passAndPlay)
             (if (turn == Owner.blue) "BLUE GOES FIRST" else "RED GOES FIRST")
@@ -295,32 +280,10 @@ class SPGameViewModel(
             else Cell()
         }),
             blueHand = myDeck.shuffled(),
-            redHand = when {
-                difficulty == "expert" -> counterDeck()
-                redDeck != null -> redDeck.shuffled()
-                else -> sample(aiRange)
-            },
+            redHand = redDeck?.shuffled() ?: emptyList(),
             turn = turn,
             rules = rules,
         )
-    }
-
-    private fun counterDeck(): List<CardDef> {
-        val sides = Side.entries
-        fun opp(s: Side) = sides[(s.ordinal + 2) % 4]
-        val pool = catalog.values.filter { it.level >= 8 }.toMutableList()
-        return myDeck.map { p ->
-            val pick = pool.maxByOrNull { c ->
-                sides.count { s -> c.rank(s) > p.rank(s) } * 100 +
-                    sides.count { s -> c.rank(s) >= p.rank(opp(s)) } * 40 +
-                    sides.sumOf { s -> c.rank(s) - p.rank(s) } +
-                    beatenCards.sumOf { b ->
-                        sides.count { s -> c.rank(s) > b.rank(opp(s)) } * 60
-                    }
-            } ?: catalog.values.random()
-            pool.remove(pick)
-            pick
-        }
     }
 
     fun rematch() {
@@ -361,9 +324,6 @@ class SPGameViewModel(
                 delay(450)
                 val move = try {
                     when (difficulty) {
-                        "easy" -> Ai.easy(snapshot)
-                        "hard" -> Ai.hard(snapshot, budgetMs = 900)
-
                         "campaign" -> when {
                             // the campaign scales the ALGORITHM, not just the clock:
                             // opening chapters play random (tutorial), mid-game greedy,
@@ -372,8 +332,7 @@ class SPGameViewModel(
                             campaign.chapter <= 5 -> Ai.medium(snapshot)
                             else -> Ai.hard(snapshot, budgetMs = aiBudgetMs)
                         }
-                        "expert" -> Ai.hard(snapshot, budgetMs = aiBudgetMs, threats = threats)
-                        else -> Ai.medium(snapshot)
+                        else -> Ai.medium(snapshot)   // pass & play never dispatches here
                     }
                 } catch (e: Exception) {
                     Ai.easy(snapshot)
@@ -396,15 +355,12 @@ class SPGameViewModel(
         val blue = state.score(Owner.blue); val red = state.score(Owner.red)
         val won = blue > red
         onRecord(won, blue == red)
-
-        onMemory(myDeck.map { it.id }, won)
     }
 
     fun concede() {
         if (recorded || state.isOver) return
         recorded = true
         onRecord(false, false)
-        onMemory(myDeck.map { it.id }, false)
     }
 
     fun dispose() { scope.cancel() }
@@ -419,29 +375,17 @@ fun SinglePlayerScreen(
     campaign: Campaign.Fight? = null,
     isReplay: Boolean = false,
     rules: Rules = Rules(),
-    threats: Set<String> = emptySet(),
-    beatenCards: List<CardDef> = emptyList(),
     aiBudgetMs: Long = 900L,
     onRecord: (won: Boolean, drawn: Boolean) -> Unit,
-    onMemory: (handIds: List<String>, won: Boolean) -> Unit = { _, _ -> },
-    pendingPack: List<CardDef> = emptyList(),
-    onPackPending: (List<CardDef>) -> Unit = {},
-    onClaimPendingPack: () -> Unit = {},
     onExit: () -> Unit,
     onNext: (() -> Unit)? = null,
     onManageDeck: (() -> Unit)? = null,
 ) {
 
-    val sittingThreats = remember { threats }
-    val sittingBeaten = remember { beatenCards }
-    val sittingBudget = remember { aiBudgetMs }
     val vm = remember(catalog, difficulty, myDeck, redDeck, campaign, rules) {
-        SPGameViewModel(catalog, difficulty, myDeck, redDeck, campaign, rules, sittingThreats, sittingBeaten, sittingBudget,
-                        { won, drawn -> onRecord(won, drawn) }, onMemory)
+        SPGameViewModel(catalog, difficulty, myDeck, redDeck, campaign, rules, aiBudgetMs,
+                        { won, drawn -> onRecord(won, drawn) })
     }
-    var packClaimed by remember(vm.generation) { mutableStateOf(false) }
-    var rolledFor by remember { mutableStateOf(-1) }
-    var showPack by remember { mutableStateOf(false) }
     var viewBoard by remember { mutableStateOf(false) }
 
     DisposableEffect(vm) { onDispose { vm.dispose() } }
@@ -456,13 +400,6 @@ fun SinglePlayerScreen(
         targetValue = if (vm.passAndPlay && state.turn == Owner.red) 180f else 0f,
         label = "boardFlip")
 
-    LaunchedEffect(state.isOver, vm.generation) {
-        if (state.isOver && !vm.passAndPlay &&
-            state.score(Owner.blue) > state.score(Owner.red) && rolledFor != vm.generation) {
-            rolledFor = vm.generation
-            onPackPending(rollPack(difficulty, catalog.values, kotlin.random.Random.Default))
-        }
-    }
     Box(Modifier.fillMaxSize()) {
         MatBackground(Modifier.matchParentSize(), dim = 0.14f)
         Column(
@@ -612,19 +549,6 @@ fun SinglePlayerScreen(
                         Spacer(Modifier.height(12.dp))
                     }
                     Spacer(Modifier.height(20.dp))
-                    if (blue > red && difficulty != "pass" && difficulty != "campaign") {
-                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(if (packClaimed) Color(40, 30, 14) else Color(46, 125, 50))
-                                .border(2.dp, Color(0xFFD4AF37), RoundedCornerShape(12.dp))
-                                .clickable(enabled = !packClaimed && pendingPack.isNotEmpty()) {
-                                    showPack = true
-                                }.padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center) {
-                            Text(if (packClaimed) "PACK CLAIMED" else "OPEN PACK  ▶",
-                                 color = Color(255, 240, 200), fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
                     if (campaign != null && campaignWon) {
                         if (onNext != null && campaign.chapter < Campaign.CHAPTERS) {
                             Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
@@ -735,13 +659,6 @@ fun SinglePlayerScreen(
             }
         }
 
-        if (showPack && pendingPack.isNotEmpty()) {
-            PackScreen(cards = pendingPack) {
-                onClaimPendingPack()
-                packClaimed = true
-                showPack = false
-            }
-        }
         if (confirmExit) {
             LeaveMatchDialog(
                 onLeave = onExit,

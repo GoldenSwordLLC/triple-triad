@@ -120,15 +120,4 @@ public enum Ai {
         return score
     }
 
-    /// Expert effort follows the rivalry's history (PlayerSave.expertStreak): deeper search
-    /// while the player keeps winning, relaxed while the player keeps losing.
-    public static func expertBudget(_ streak: Int) -> Int {
-        switch streak {
-        case 3...: return 1800
-        case 2: return 1400
-        case ...(-3): return 500
-        case -2: return 700
-        default: return 1100
-        }
-    }
 }

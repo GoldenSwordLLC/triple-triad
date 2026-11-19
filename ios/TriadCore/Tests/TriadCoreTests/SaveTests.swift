@@ -14,24 +14,6 @@ final class SaveTests: XCTestCase {
 
     private let exclusives: Set<String> = ["c9_1", "c10_1", "c10_2"]
 
-    func testPackSizesFloorsAndExclusivity() {
-        let cat = catalog()
-        for _ in 0..<20 {
-            XCTAssertEqual(rollPack(difficulty: "easy", catalog: cat, exclusives: exclusives).count, 3)
-            let medium = rollPack(difficulty: "medium", catalog: cat, exclusives: exclusives)
-            XCTAssertEqual(medium.count, 4)
-            XCTAssertTrue(medium.contains { $0.level >= 4 })
-            let hard = rollPack(difficulty: "hard", catalog: cat, exclusives: exclusives)
-            XCTAssertEqual(hard.count, 3)
-            XCTAssertTrue(hard.contains { $0.level >= 7 })
-            XCTAssertTrue(hard.allSatisfy { !exclusives.contains($0.id) }, "hard leaked a hidden card")
-            let expert = rollPack(difficulty: "expert", catalog: cat, exclusives: exclusives)
-            XCTAssertEqual(expert.count, 2)
-            XCTAssertTrue(expert.allSatisfy { $0.level >= 9 }, "expert must only drop level 9-10")
-            XCTAssertTrue(expert.contains { exclusives.contains($0.id) }, "expert missing its guaranteed hidden card")
-        }
-    }
-
     func testAddCardsStacksCopies() {
         let cat = catalog()
         var save = PlayerSave()

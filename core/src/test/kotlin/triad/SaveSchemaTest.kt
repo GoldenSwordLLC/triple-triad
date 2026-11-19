@@ -38,4 +38,10 @@ class SaveSchemaTest {
     @Test fun `persisted saves always carry the current schema`() {
         assertEquals(SAVE_SCHEMA, freshSave().schema)
     }
+
+    @Test fun `addCards stacks copies into the collection`() {
+        val card = CardDef("testcard", "Test", 1, Element.none, 1, 2, 3, 4)
+        val save = freshSave().addCards(listOf(card, card, card))
+        assertEquals(3, save.collection[card.id])
+    }
 }

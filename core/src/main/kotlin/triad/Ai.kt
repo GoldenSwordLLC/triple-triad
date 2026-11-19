@@ -85,11 +85,4 @@ object Ai {
         return score
     }
 
-    fun expertBudget(streak: Int): Long = when {
-        streak >= 3 -> 1800L
-        streak >= 2 -> 1400L
-        streak <= -3 -> 500L
-        streak <= -2 -> 700L
-        else -> 1100L
-    }
 }

@@ -39,30 +39,25 @@ public final class SinglePlayerGame: ObservableObject {
     private var recorded = false
     private let onRecord: (Bool, Bool) -> Void
     private let onMemory: ([String], Bool) -> Void
-    private let threats: Set<String>          // Expert memory: the player's proven cards
-    private let expertBudgetMs: Int           // Expert memory: effort follows the streak
     private let aiQueue = DispatchQueue(label: "triad.ai", qos: .userInitiated)
 
     // AI card quality scales with difficulty; pass & play red stays casual.
     private let aiRange: ClosedRange<Int>
 
     public init(catalog: [String: CardDef], difficulty: String, myDeck: [CardDef],
-                delayMs: UInt32 = 450, threats: Set<String> = [], expertBudgetMs: Int = 1400,
+                delayMs: UInt32 = 450,
                 onRecord: @escaping (Bool, Bool) -> Void,
                 onMemory: @escaping ([String], Bool) -> Void = { _, _ in }) {
         self.catalog = Array(catalog.values)
         self.difficulty = difficulty
         self.myDeck = myDeck
         self.delayMs = delayMs
-        self.threats = threats
-        self.expertBudgetMs = expertBudgetMs
         self.onRecord = onRecord
         self.onMemory = onMemory
         self.passAndPlay = difficulty == "pass"
         switch difficulty {
         case "easy": aiRange = 1...3
         case "hard": aiRange = 3...10
-        case "expert": aiRange = 8...10   // GFs and character cards only
         case "pass": aiRange = 1...5
         default: aiRange = 1...6
         }
@@ -78,25 +73,9 @@ public final class SinglePlayerGame: ObservableObject {
                 aiRange.randomElement().flatMap { byLevel[$0]?.randomElement() }
             }
         }
-        let red: [CardDef] = difficulty == "expert" ? counterDeck(myDeck: myDeck, catalog: catalog) : sample()
+        let red = sample()
         return GameState(board: Board(), blueHand: myDeck.shuffled(), redHand: red,
                          turn: Bool.random() ? .blue : .red, rules: Rules())
-    }
-
-    /// For each of your cards, field the strongest available GF/character card whose
-    /// edges beat that card's edges.
-    private static func counterDeck(myDeck: [CardDef], catalog: [CardDef]) -> [CardDef] {
-        var pool = catalog.filter { $0.level >= 8 }
-        return myDeck.map { p in
-            let pick = pool.max { a, b in
-                func score(_ c: CardDef) -> Int {
-                    Side.allCases.reduce(0) { $0 + (c.rank($1) > p.rank($1) ? 100 : 0) + (c.rank($1) - p.rank($1)) }
-                }
-                return score(a) < score(b)
-            } ?? catalog.randomElement()!
-            pool.removeAll { $0.id == pick.id }
-            return pick
-        }
     }
 
     /// Concede & Exit records a loss (and feeds Expert memory) exactly like being
@@ -143,7 +122,6 @@ public final class SinglePlayerGame: ObservableObject {
             switch self.difficulty {
             case "easy": move = Ai.easy(self.state)
             case "hard": move = Ai.hard(self.state, budgetMs: 900)
-            case "expert": move = Ai.hard(self.state, budgetMs: self.expertBudgetMs, threats: self.threats)
             default: move = Ai.medium(self.state)
             }
             DispatchQueue.main.async {
