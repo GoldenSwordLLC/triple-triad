@@ -475,7 +475,7 @@ fun SinglePlayerScreen(
                         if (!on) return@forEach
                         if (shown > 0) Text("·", color = Color(140, 120, 90), fontSize = 10.sp)
                         Text(label,
-                             color = if (fire) Color(255, 190, 60) else Color(230, 205, 160),
+                             color = if (fire) Color(15, 12, 8) else Color(230, 205, 160),
                              fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         shown++
                     }
