@@ -35,7 +35,7 @@ fun CreditsScreen(catalog: Map<String, CardDef>, onBack: () -> Unit) {
     var pair by remember { mutableStateOf(randomHighPair(catalog)) }
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(
             Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -65,7 +65,8 @@ fun CreditsScreen(catalog: Map<String, CardDef>, onBack: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Text("TRIAD", color = CreditsGoldText, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                    Text("TRIAD", color = CreditsGoldText, fontSize = 34.sp, fontWeight = FontWeight.Bold,
+                         style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
                     Spacer(Modifier.height(12.dp))
                     creditsSection("Development", "GoldenSword LLC")
                     creditsLink("Github") { context.openUrl("https://github.com/GoldenSwordLLC/triple-triad") }

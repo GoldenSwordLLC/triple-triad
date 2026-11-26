@@ -24,12 +24,13 @@ private val TutorialBody = Color(245, 238, 220)
 @Composable
 fun TutorialScreen(onDone: () -> Unit) {
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(
             Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("HOW TO PLAY", color = TutorialTitle, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+            style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow),
                  modifier = Modifier.padding(top = 8.dp, bottom = 12.dp))
 
             Box(

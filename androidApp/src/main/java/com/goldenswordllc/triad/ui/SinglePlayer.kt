@@ -100,7 +100,7 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
         )
     }
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.24f, bottomScrim = true)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f, bottomScrim = true)
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.weight(0.9f))
 
@@ -108,9 +108,7 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
 
             Text("TRIAD", color = GoldText, fontSize = 44.sp, fontWeight = FontWeight.Bold,
                  style = LocalTextStyle.current.copy(
-                     shadow = androidx.compose.ui.graphics.Shadow(
-                         color = Color(80, 55, 10), blurRadius = 8f,
-                         offset = androidx.compose.ui.geometry.Offset(2f, 2f))))
+                     shadow = MatTextShadow))
 
             Text("a Triple Triad fan game", color = Color(245, 238, 220), fontSize = 12.sp,
                  modifier = Modifier.clip(RoundedCornerShape(8.dp))
@@ -140,11 +138,12 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
                 }
                 Spacer(Modifier.height(8.dp))
             }
-            Text("THE CARD CIRCUIT", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("THE CARD CIRCUIT", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
             Spacer(Modifier.height(6.dp))
             if (cleared) {
                 Text("CIRCUIT COMPLETE · ${record.circuitWins}W · ${record.circuitLosses}L",
                      color = GoldText, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                     style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow),
                      modifier = Modifier.padding(bottom = 4.dp))
                 GoldButton("CIRCUIT  ▶", sub = "replay any of the 51 fights — decks match the era",
                            filled = true) { onStart("hub") }
@@ -163,16 +162,16 @@ fun MenuScreen(record: PlayerSave, hasValidDeck: Boolean,
             Spacer(Modifier.height(10.dp))
             Row {
                 TextButton(onTutorial) {
-                    Text("HOW TO PLAY", color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("HOW TO PLAY", color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
                 }
                 TextButton(onSettings) {
-                    Text("SETTINGS", color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("SETTINGS", color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
                 }
             }
 
             Spacer(Modifier.weight(1f))
             Text("W ${record.wins}  ·  L ${record.losses}",
-                 color = Color(200, 180, 140), fontSize = 10.sp, modifier = Modifier.padding(bottom = 10.dp))
+                 style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow), color = Color(200, 180, 140), fontSize = 10.sp, modifier = Modifier.padding(bottom = 10.dp))
         }
     }
 
@@ -401,7 +400,7 @@ fun SinglePlayerScreen(
         label = "boardFlip")
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.14f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(
             Modifier.fillMaxSize().padding(horizontal = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -409,7 +408,7 @@ fun SinglePlayerScreen(
 
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { gameMenuOpen = true }) {
-                    Text("Menu", color = Color(255, 250, 235), fontWeight = FontWeight.Bold)
+                    Text("Menu", color = Color(255, 250, 235), fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
                 }
                 Spacer(Modifier.weight(1f))
                 ScorePill(red = state.score(Owner.red), blue = state.score(Owner.blue),
@@ -463,7 +462,13 @@ fun SinglePlayerScreen(
                 add(Triple("SAME WALL", state.rules.sameWall, false))
                 add(Triple("ELEMENTAL", state.rules.elemental, false))
             }
-            Row(Modifier.padding(top = 3.dp, bottom = 2.dp),
+            // WCAG: every state passes on the dark chip (unlit cream 8.8:1, fired gold 8.2:1) —
+            // light-on-mat can never reach 4.5:1 (pure white caps at 2.1:1 on this mat).
+            // Chip hugs the line; net height delta vs the old bare line is +1dp, static.
+            Row(Modifier
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(Color(30, 22, 8).copy(alpha = 0.85f))
+                    .padding(horizontal = 12.dp, vertical = 3.dp),
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 if (tokens.none { it.second }) {
@@ -473,9 +478,9 @@ fun SinglePlayerScreen(
                     var shown = 0
                     tokens.forEach { (label, on, fire) ->
                         if (!on) return@forEach
-                        if (shown > 0) Text("·", color = Color(140, 120, 90), fontSize = 10.sp)
+                        if (shown > 0) Text("·", color = Color(160, 140, 108), fontSize = 10.sp)
                         Text(label,
-                             color = if (fire) Color(15, 12, 8) else Color(230, 205, 160),
+                             color = if (fire) Color(255, 190, 60) else Color(230, 205, 160),
                              fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         shown++
                     }
@@ -800,12 +805,13 @@ fun CircuitScreen(circuitWins: Int, circuitLosses: Int,
     val canUp by remember { derivedStateOf { vScroll.value > 0 } }
     val canDown by remember { derivedStateOf { vScroll.value < vScroll.maxValue } }
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
                horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("THE CARD CIRCUIT", color = GoldText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("THE CARD CIRCUIT", color = GoldText, fontSize = 20.sp, fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
             Text("CIRCUIT COMPLETE · ${circuitWins}W · ${circuitLosses}L",
-                 color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                 color = Color(230, 205, 160), fontSize = 12.sp,
+                 style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow), fontWeight = FontWeight.Bold,
                  modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
             Box(Modifier.weight(1f).fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp)).background(Color(22, 15, 6).copy(alpha = 0.88f))) {
@@ -892,11 +898,12 @@ fun CampaignVersusScreen(catalog: Map<String, CardDef>, cleared: List<Int>,
         if (opp.sameWall) add("SAME WALL"); if (opp.elemental) add("ELEMENTAL")
     }
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text((if (replayFight != null) "REPLAY · " else "") +
                  "CHAPTER ${opp.chapter} · MATCH $matchInChapter OF ${chapterMates.size}",
-                 color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                 color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                 style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
             Spacer(Modifier.height(12.dp))
             Box(Modifier.width(190.dp).clip(RoundedCornerShape(10.dp))
                     .background(Color(20, 26, 38)).border(2.dp, Gold, RoundedCornerShape(10.dp))
@@ -915,10 +922,11 @@ fun CampaignVersusScreen(catalog: Map<String, CardDef>, cleared: List<Int>,
                 }
             }
             Spacer(Modifier.height(10.dp))
-            Text(opp.name, color = Color(255, 240, 200), fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text(opp.epithet, color = Color(245, 232, 205), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(opp.name, color = Color(255, 240, 200), fontSize = 30.sp, fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
+            Text(opp.epithet, color = Color(245, 232, 205), fontSize = 15.sp, fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
             Spacer(Modifier.height(8.dp))
             Text("\u201c${opp.intro}\u201d", color = Color(245, 238, 220), fontSize = 13.sp,
+                 style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow),
                  textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Spacer(Modifier.height(10.dp))
             Box(Modifier.clip(RoundedCornerShape(8.dp)).background(Color(60, 44, 18))
@@ -928,7 +936,7 @@ fun CampaignVersusScreen(catalog: Map<String, CardDef>, cleared: List<Int>,
                      color = Color(230, 205, 160), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(14.dp))
-            Text("THEIR CARDS", color = Color(255, 150, 130), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("THEIR CARDS", color = Color(255, 150, 130), fontSize = 11.sp, fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 opp.deckIds.forEach { id -> catalog[id]?.let {

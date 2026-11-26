@@ -43,7 +43,7 @@ fun PassRedDeckScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("RED, BUILD YOUR HAND", color = PrGoldText, fontSize = 20.sp, fontWeight = FontWeight.Bold,
                  modifier = Modifier.padding(vertical = 8.dp))

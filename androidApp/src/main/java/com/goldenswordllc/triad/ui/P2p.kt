@@ -124,7 +124,7 @@ fun HostLobbyScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.24f, bottomScrim = true)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f, bottomScrim = true)
         Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             when {
                 session != null -> {
@@ -296,7 +296,7 @@ fun JoinFlowScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.24f, bottomScrim = true)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f, bottomScrim = true)
         Column(Modifier.fillMaxSize()) {
             when {
                 phase == "prematch" && joinSession != null -> {
@@ -373,10 +373,11 @@ fun MultiplayerScreen(hasActiveDeck: Boolean, onDecks: () -> Unit,
     fun gate(mode: () -> Unit): () -> Unit = if (hasActiveDeck) mode else { { askForDeck = mode } }
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.24f, bottomScrim = true)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f, bottomScrim = true)
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(24.dp))
-            Text("MULTIPLAYER", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text("MULTIPLAYER", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                    style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
             Spacer(Modifier.height(16.dp))
 
             Box(Modifier.weight(1f).fillMaxWidth()
@@ -470,7 +471,7 @@ fun P2pMatchScreen(
     var infoCard by remember { mutableStateOf<Pair<CardDef, Owner>?>(null) }
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.14f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(
             Modifier.fillMaxSize().padding(horizontal = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),

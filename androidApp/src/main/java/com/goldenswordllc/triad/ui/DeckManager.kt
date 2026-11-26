@@ -73,7 +73,7 @@ fun DeckManagerScreen(
     val distinct = save.collection.count { it.value > 0 }
     val total = save.collection.values.sum()
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.28f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("DECKS", color = GoldText, fontSize = 24.sp, fontWeight = FontWeight.Bold,
                  modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
@@ -152,7 +152,7 @@ fun DeckEditorScreen(
     val collection = remember(save) { save.collection.filterValues { it > 0 } }
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.28f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("BUILD A DECK", color = GoldText, fontSize = 20.sp, fontWeight = FontWeight.Bold)

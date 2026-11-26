@@ -43,12 +43,13 @@ fun SettingsScreen(record: PlayerSave, lastCrash: String?, onWipeRecord: () -> U
     }
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(
             Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("SETTINGS", color = GoldText, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+            style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow),
                  modifier = Modifier.padding(top = 8.dp, bottom = 12.dp))
 
             Box(

@@ -33,6 +33,14 @@ import kotlinx.coroutines.launch
 import triad.core.*
 import triad.net.*
 
+/** Readability shadow for text over the playmat. WCAG note: a shadow aids
+ *  perception but does NOT count toward the 4.5:1 ratio — mat-backed text
+ *  pairs this with the deepened backdrop (MatBackground dim 0.34f). */
+val MatTextShadow = androidx.compose.ui.graphics.Shadow(
+    color = androidx.compose.ui.graphics.Color(18, 11, 3),
+    offset = androidx.compose.ui.geometry.Offset(0f, 6f),
+    blurRadius = 14f)
+
 @Composable
 fun MatchSetupScreen(
     decks: List<NamedDeck>, activeDeckId: String?, pref: ColorPref,
@@ -407,7 +415,7 @@ fun MatchResultScreen(state: ResultState, myColor: Owner, onDone: () -> Unit,
             .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                        indication = null) {}
     ) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             val (label, color) = when (state.outcome) {
                 is SessionEvent.Outcome.Won -> "VICTORY" to Color(0xFF2E7D32)

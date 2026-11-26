@@ -113,7 +113,7 @@ fun OnlineHostScreen(
     var rules by remember { mutableStateOf(Rules()) }
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.24f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             when {
                 session != null -> {
@@ -213,7 +213,7 @@ fun OnlineJoinScreen(
                 onExit = onExit)
         }
         else -> Box(Modifier.fillMaxSize()) {
-            MatBackground(Modifier.matchParentSize(), dim = 0.24f)
+            MatBackground(Modifier.matchParentSize(), dim = 0.34f)
             Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.weight(1f).fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp)).background(Color(22, 15, 6).copy(alpha = 0.88f))) {

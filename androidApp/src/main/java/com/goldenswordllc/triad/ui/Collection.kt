@@ -48,9 +48,10 @@ fun CollectionScreen(catalog: Map<String, CardDef>, save: PlayerSave, onBack: ()
     }
 
     Box(Modifier.fillMaxSize()) {
-        MatBackground(Modifier.matchParentSize(), dim = 0.3f)
+        MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("COLLECTION", color = CollectionGold, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+            style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow),
                  modifier = Modifier.padding(vertical = 10.dp))
             Box(Modifier.weight(1f).fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp)).background(Color(22, 15, 6).copy(alpha = 0.88f))) {
