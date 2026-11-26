@@ -46,16 +46,22 @@ private val Gold = Color(0xFFD4AF37)
 private val GoldText = Color(0xFFFFF0C8)
 
 /** HSV(hue, 1, 1) → Color: the fired-rule rainbow strobe. */
-private fun ruleFireColor(hue: Float): Color {
-    val h = ((hue % 360f) + 360f) % 360f / 60f
-    val i = h.toInt()
-    val f = h - i
-    val p = 0f; val q = 1f - f; val t = f
-    val (r, g, b) = when (i % 6) {
-        0 -> Triple(1f, t, p); 1 -> Triple(q, 1f, p); 2 -> Triple(p, 1f, t)
-        3 -> Triple(p, q, 1f); 4 -> Triple(t, p, 1f); else -> Triple(1f, p, q)
-    }
-    return Color(r, g, b)
+/** Even rainbow: linear RGB interpolation across the six wheel colors — the HSV
+ *  hue wheel holds each primary for a long perceptual stretch ("sits at red"),
+ *  while this moves at constant speed through every frame of the cycle. */
+private val RAINBOW = listOf(
+    Color(1f, 0f, 0f), Color(1f, 1f, 0f), Color(0f, 1f, 0f),
+    Color(0f, 1f, 1f), Color(0f, 0f, 1f), Color(1f, 0f, 1f))
+
+private fun ruleFireColor(t: Float): Color {
+    val n = RAINBOW.size
+    val x = (((t % 1f) + 1f) % 1f) * n
+    val i = x.toInt() % n
+    val f = x - x.toInt()
+    val a = RAINBOW[i]; val b = RAINBOW[(i + 1) % n]
+    return Color(a.red + (b.red - a.red) * f,
+                 a.green + (b.green - a.green) * f,
+                 a.blue + (b.blue - a.blue) * f)
 }
 
 // update check runs at most once per app process (the menu re-composes often;
@@ -498,14 +504,14 @@ fun SinglePlayerScreen(
                         if (!on) return@forEach
                         if (shown > 0) Text("·", color = Color(160, 140, 108), fontSize = 10.sp)
                         if (fire) {
-                            // the fired rule strobes through the hue wheel — unmissable
+                            // the fired rule strobes an even rainbow — unmissable
                             // (color-only animation: the board never reflows)
-                            val hue = rememberInfiniteTransition(label = "ruleFire").animateFloat(
-                                0f, 360f,
+                            val t = rememberInfiniteTransition(label = "ruleFire").animateFloat(
+                                0f, 1f,
                                 infiniteRepeatable(tween(1400, easing = LinearEasing)),
-                                label = "hue")
+                                label = "progress")
                             Text(label,
-                                 color = ruleFireColor(hue.value),
+                                 color = ruleFireColor(t.value),
                                  fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         } else {
                             Text(label, color = Color(230, 205, 160),
