@@ -2,7 +2,12 @@ package com.goldenswordllc.triad.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,6 +44,19 @@ val FrameBlue = Color(0xFF1565C0)
 private val FrameRed = Color(0xFFB71C1C)
 private val Gold = Color(0xFFD4AF37)
 private val GoldText = Color(0xFFFFF0C8)
+
+/** HSV(hue, 1, 1) → Color: the fired-rule rainbow strobe. */
+private fun ruleFireColor(hue: Float): Color {
+    val h = ((hue % 360f) + 360f) % 360f / 60f
+    val i = h.toInt()
+    val f = h - i
+    val p = 0f; val q = 1f - f; val t = f
+    val (r, g, b) = when (i % 6) {
+        0 -> Triple(1f, t, p); 1 -> Triple(q, 1f, p); 2 -> Triple(p, 1f, t)
+        3 -> Triple(p, q, 1f); 4 -> Triple(t, p, 1f); else -> Triple(1f, p, q)
+    }
+    return Color(r, g, b)
+}
 
 // update check runs at most once per app process (the menu re-composes often;
 // the network call must not)
@@ -479,9 +497,20 @@ fun SinglePlayerScreen(
                     tokens.forEach { (label, on, fire) ->
                         if (!on) return@forEach
                         if (shown > 0) Text("·", color = Color(160, 140, 108), fontSize = 10.sp)
-                        Text(label,
-                             color = if (fire) Color(255, 190, 60) else Color(230, 205, 160),
-                             fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        if (fire) {
+                            // the fired rule strobes through the hue wheel — unmissable
+                            // (color-only animation: the board never reflows)
+                            val hue = rememberInfiniteTransition(label = "ruleFire").animateFloat(
+                                0f, 360f,
+                                infiniteRepeatable(tween(1400, easing = LinearEasing)),
+                                label = "hue")
+                            Text(label,
+                                 color = ruleFireColor(hue.value),
+                                 fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        } else {
+                            Text(label, color = Color(230, 205, 160),
+                                 fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
                         shown++
                     }
                 }
