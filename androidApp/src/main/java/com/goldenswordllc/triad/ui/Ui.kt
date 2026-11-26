@@ -38,8 +38,8 @@ import triad.net.*
  *  pairs this with the deepened backdrop (MatBackground dim 0.34f). */
 val MatTextShadow = androidx.compose.ui.graphics.Shadow(
     color = androidx.compose.ui.graphics.Color(18, 11, 3),
-    offset = androidx.compose.ui.geometry.Offset(0f, 6f),
-    blurRadius = 14f)
+    offset = androidx.compose.ui.geometry.Offset(0f, 10f),
+    blurRadius = 4f)
 
 @Composable
 fun MatchSetupScreen(
