@@ -76,8 +76,9 @@ fun DeckManagerScreen(
         MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("DECKS", color = GoldText, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                 style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow),
                  modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
-            Text("COLLECTION: $distinct cards ($total total)", color = DimText, fontSize = 12.sp)
+            Text("COLLECTION: $distinct cards ($total total)", color = DimText, fontSize = 12.sp, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
 
             Box(Modifier.weight(1f).fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp)).background(PanelBg)) {
@@ -155,10 +156,10 @@ fun DeckEditorScreen(
         MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("BUILD A DECK", color = GoldText, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("BUILD A DECK", color = GoldText, fontSize = 20.sp, fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
                 Spacer(Modifier.weight(1f))
                 Text("${picked.size}/5", color = if (picked.size == 5) Gold else DimText,
-                     fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                     fontSize = 16.sp, fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
             }
             OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                               singleLine = true,
@@ -189,6 +190,7 @@ fun DeckEditorScreen(
             }
 
             Text("COLLECTION, tap a card to add it", color = DimText, fontSize = 11.sp,
+                 style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow),
                  modifier = Modifier.padding(vertical = 6.dp))
 
             Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(PanelBg)) {

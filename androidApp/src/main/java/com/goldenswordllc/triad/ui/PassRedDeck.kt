@@ -46,10 +46,11 @@ fun PassRedDeckScreen(
         MatBackground(Modifier.matchParentSize(), dim = 0.34f)
         Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("RED, BUILD YOUR HAND", color = PrGoldText, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+            style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow),
                  modifier = Modifier.padding(vertical = 8.dp))
-            Text("pass the phone to the red player", color = PrDim, fontSize = 10.sp)
+            Text("pass the phone to the red player", color = PrDim, fontSize = 10.sp, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
             Spacer(Modifier.height(10.dp))
-            Text("MATCH RULES, optional", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("MATCH RULES, optional", color = Color(230, 205, 160), fontSize = 11.sp, fontWeight = FontWeight.Bold, style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
             RulesPicker(rules = rules, onToggle = { i -> rules = rules.toggled(i) })
 
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),

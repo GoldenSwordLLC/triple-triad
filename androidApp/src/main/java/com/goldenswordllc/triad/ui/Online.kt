@@ -165,7 +165,8 @@ fun OnlineHostScreen(
                         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp),
                                horizontalAlignment = Alignment.CenterHorizontally,
                                verticalArrangement = Arrangement.Center) {
-                            Text("HOST ONLINE", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text("HOST ONLINE", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                            style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
                             Spacer(Modifier.height(14.dp))
                             Spacer(Modifier.height(16.dp))
                             RulesPicker(rules = rules, onToggle = { i -> rules = rules.toggled(i) },
@@ -220,7 +221,8 @@ fun OnlineJoinScreen(
                     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp),
                            horizontalAlignment = Alignment.CenterHorizontally,
                            verticalArrangement = Arrangement.Center) {
-                        Text("JOIN ONLINE", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Text("JOIN ONLINE", color = Color(255, 240, 200), fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                        style = androidx.compose.material3.LocalTextStyle.current.copy(shadow = MatTextShadow))
                         Spacer(Modifier.height(10.dp))
                         Text("enter the 6-character code your friend reads you", color = Color(190, 175, 145),
                              fontSize = 11.sp)
